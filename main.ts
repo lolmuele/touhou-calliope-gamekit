@@ -337,6 +337,7 @@ class Game {
         this.projectiles = []
         this.enemies = [new Enemy("test", this.player)]
         this.frameTimeList = []
+        info.showScore(true)
     }
     
     public gameOver() {
@@ -419,9 +420,9 @@ class Game {
         })
     }
     
-    public frametimes() {
+    public frametimes(t1: number, t2: number) {
         let average: number;
-        this.frameTimeList.push(game.runtime() - this.prevRunTime)
+        this.frameTimeList.push((t1 - t2) * 1000)
         this.prevRunTime = game.runtime()
         if (this.frameTimeList.length == 60) {
             average = 0
@@ -429,7 +430,8 @@ class Game {
                 average += Math.trunc(i)
             }
             average = average / 60
-            console.log("average frametime last 100 frames:" + ("" + average))
+            // print("average frametime last 100 frames:" + str(average))
+            this.player.skin.sayText("" + Math.trunc(average))
             this.frameTimeList = []
         }
         
@@ -532,8 +534,10 @@ class Game {
     public mainLoop() {
         this.prevRunTime = 0
         this.collisionCheck()
+        game.stats = true
         game.onUpdate(function onUpdate() {
             // print("frametime: " + str(game.runtime() - self.prevRunTime))
+            let startOfUpdate = game.runtime()
             this.projectileTest()
             this.player.movementController()
             this.projectileDestructor()
@@ -547,7 +551,7 @@ class Game {
             }
             
             this.enemyActions()
-            this.frametimes()
+            this.frametimes(startOfUpdate, game.runtime())
         })
     }
     
