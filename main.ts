@@ -1,0 +1,539 @@
+class HUD {
+    background: Sprite
+    stageBackground: Sprite
+    gameOverSprite: Sprite
+    constructor() {
+        this.background = sprites.create(assets.image`hudBackground`, 999)
+        this.background.z = 999
+        this.background.setPosition(140, 60)
+        this.stageBackground = sprites.create(assets.image`stageBackground`, 999)
+        this.stageBackground.z = -100
+        this.stageBackground.setPosition(60, 60)
+        
+    }
+    
+    public gameOver() {
+        this.gameOverSprite = sprites.create(assets.image`gameOver`, 999)
+        this.gameOverSprite.z = 999
+        this.gameOverSprite.setPosition(60, 60)
+    }
+    
+}
+
+// TODO: 
+// add enemies
+// need to make pathing work -kinda implemented
+// shots can't home yet -they can now
+// need HP -works
+// handle destruction -works 
+// add health/damage handling
+// player can take damage and has health -done
+// iframes after hit -works
+// game over, continue & restart
+// add bombs
+// add hud functionality
+// make hitbox not move within the sprite -works i'm pretty sure
+// add bosses
+// visuals (ugh)
+// add menu
+// add drops
+class Projectile {
+    sprite: Sprite
+    xVel: number
+    yVel: number
+    maxSpeed: number
+    constructor(spriteName: string = "projectile", spriteKind: number = 1, xVel: number = 0, yVel: number = 0, maxSpeed: number = 50) {
+        if (spriteName == "projectile") {
+            this.sprite = sprites.create(assets.tile`projectile`, 1)
+            this.sprite.setKind(spriteKind)
+        }
+        
+        this.xVel = xVel
+        this.yVel = yVel
+        this.maxSpeed = maxSpeed
+    }
+    
+    public homeTo(x: number, y: number) {
+        let diffX = x - this.sprite.x
+        let diffY = y - this.sprite.y
+        // does this catch division by 0? idek
+        if (diffX == 0 && diffY == 0) {
+            this.xVel = 0
+            this.yVel = this.maxSpeed
+        } else if (Math.abs(diffX) >= Math.abs(diffY)) {
+            this.xVel = this.maxSpeed * diffX / Math.abs(diffX)
+            this.yVel = this.xVel * (diffY / diffX)
+        } else {
+            this.yVel = this.maxSpeed * diffY / Math.abs(diffY)
+            this.xVel = this.yVel * (diffX / diffY)
+        }
+        
+        this.sprite.setVelocity(this.xVel, this.yVel)
+    }
+    
+    public setAngle(angle: number) {
+        if (angle < 0) {
+            angle += 360
+        }
+        
+        let rad = angle * Math.PI / 180
+        this.xVel = Math.sin(rad) * this.maxSpeed
+        this.yVel = Math.cos(rad) * this.maxSpeed
+        this.sprite.setVelocity(this.xVel, this.yVel)
+    }
+    
+}
+
+class playerProjectile extends Projectile {
+    constructor() {
+        super("marisaShot", 2, 0, 0, 200)
+        this.sprite = sprites.create(assets.tile`marisaShot`, 2)
+        this.sprite.setScale(0.8, ScaleAnchor.Middle)
+    }
+    
+}
+
+class redCircleProjectile extends Projectile {
+    constructor() {
+        super("redBall", 2, 0, 0, 30)
+        this.sprite = sprites.create(assets.tile`redBall`, 3)
+        this.sprite.setScale(0.8, ScaleAnchor.Middle)
+    }
+    
+}
+
+class Enemy {
+    sprite: Sprite
+    projectiles: Projectile[]
+    health: number
+    dead: boolean
+    route: number[][]
+    routePoint: number
+    waitTime: number
+    player: Player
+    pointReachedTime: number
+    xVel: number
+    yVel: number
+    maxSpeed: number
+    constructor(spriteName: string, player: Player, health: number = 5) {
+        if (spriteName == "test") {
+            this.sprite = sprites.create(assets.tile`marisa`, 4)
+        }
+        
+        this.projectiles = []
+        this.health = health
+        this.dead = false
+        // route format:
+        // [[x: int, y: int, maxSpeed:int, waitTime:int(in ms), shoot: bool], [x, y...]]
+        // self.route = []
+        // testroute here:
+        this.route = [[60, -10, 30, 500, 1], [60, 25, 30, 2000, 1], [12, 30, 300, 800, 1], [78, 90, 90, 0, 1], [0, 0, 50, 0, 1]]
+        this.sprite.setPosition(this.route[0][0], this.route[0][1])
+        this.routePoint = 1
+        this.waitTime = 0
+        this.player = player
+        this.pointReachedTime = 0
+    }
+    
+    public shoot() {
+        this.projectiles.push(new redCircleProjectile())
+        this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y)
+        this.projectiles[this.projectiles.length - 1].setAngle(0)
+    }
+    
+    public shootHoming() {
+        this.projectiles.push(new redCircleProjectile())
+        this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y)
+        this.projectiles[this.projectiles.length - 1].homeTo(this.player.sprite.x, this.player.sprite.y)
+    }
+    
+    public takeDamage() {
+        this.health -= 1
+        if (this.health <= 0) {
+            this.dead = true
+        }
+        
+    }
+    
+    public homeTo(x: number, y: number) {
+        let diffX = x - this.sprite.x
+        let diffY = y - this.sprite.y
+        // does this catch division by 0? idek
+        if (diffX == 0 && diffY == 0) {
+            this.xVel = 0
+            this.yVel = this.maxSpeed
+        } else if (Math.abs(diffX) >= Math.abs(diffY)) {
+            this.xVel = this.maxSpeed * diffX / Math.abs(diffX)
+            this.yVel = this.xVel * (diffY / diffX)
+        } else {
+            this.yVel = this.maxSpeed * diffY / Math.abs(diffY)
+            this.xVel = this.yVel * (diffX / diffY)
+        }
+        
+        this.sprite.setVelocity(this.xVel, this.yVel)
+    }
+    
+    public closeEnough(x1: number, x2: number, y1: number, y2: number, speed: number): boolean {
+        let tolerance = Math.idiv(speed, 50) > 2 ? Math.idiv(speed, 50) : 2
+        let diffX = Math.abs(x1 - x2)
+        let diffY = Math.abs(y1 - y2)
+        if (diffX <= tolerance && diffY <= tolerance) {
+            return true
+        } else {
+            return false
+        }
+        
+    }
+    
+    public goRoute() {
+        if (this.dead) {
+            return
+        }
+        
+        if (this.waitTime > 0) {
+            this.waitTime -= game.runtime() - this.pointReachedTime
+            this.pointReachedTime = game.runtime()
+        } else if (this.routePoint == this.route.length) {
+            
+        } else if (this.closeEnough(this.sprite.x, this.route[this.routePoint][0], this.sprite.y, this.route[this.routePoint][1], this.route[this.routePoint][2])) {
+            this.pointReachedTime = game.runtime()
+            this.waitTime = this.route[this.routePoint][3]
+            if (this.waitTime > 0) {
+                this.sprite.setVelocity(0, 0)
+            }
+            
+            if (this.route[this.routePoint][4]) {
+                this.shootHoming()
+                this.route[this.routePoint][4] = 0
+            }
+            
+            this.routePoint += 1
+        }
+        
+        if (!(this.routePoint == this.route.length) && this.waitTime <= 0) {
+            this.maxSpeed = this.route[this.routePoint][2]
+            this.homeTo(this.route[this.routePoint][0], this.route[this.routePoint][1])
+        }
+        
+    }
+    
+}
+
+class Player {
+    sprite: Sprite
+    level: number
+    projectiles: Projectile[]
+    slowDownVariable: number
+    skin: Sprite
+    health: number
+    lastHit: number
+    constructor() {
+        this.sprite = sprites.create(assets.tile`hitbox`, SpriteKind.Player)
+        this.sprite.setStayInScreen(true)
+        this.sprite.setKind(0)
+        this.level = 0
+        this.projectiles = []
+        this.slowDownVariable = 0
+        this.skin = sprites.create(assets.tile`marisa`)
+        // self.skin.follow(self.sprite)
+        this.skin.setPosition(this.sprite.x, this.sprite.y - 1)
+        this.health = 3
+        this.lastHit = -3000
+    }
+    
+    // so you're not invincible at the start of the game
+    public takeDamage() {
+        this.health -= 1
+        scene.cameraShake(2, 300)
+        // visual feedback for getting hit
+        this.lastHit = game.runtime()
+        animation.runImageAnimation(this.skin, [assets.tile`damageFlicker`, assets.tile`marisa`, assets.tile`damageFlicker`, assets.tile`marisa`, assets.tile`damageFlicker`, assets.tile`marisa`, assets.tile`damageFlicker`, assets.tile`marisa`, assets.tile`damageFlicker`, assets.tile`marisa`, assets.tile`damageFlicker`, assets.tile`marisa`], 250, false)
+    }
+    
+    // visual feedback for i-frames
+    public movementController() {
+        let xVel = 0
+        let yVel = 0
+        if (controller.up.isPressed()) {
+            yVel -= 80
+        }
+        
+        if (controller.down.isPressed()) {
+            yVel += 80
+        }
+        
+        if (controller.left.isPressed()) {
+            xVel -= 80
+        }
+        
+        if (controller.right.isPressed()) {
+            xVel += 80
+        }
+        
+        if (controller.B.isPressed()) {
+            xVel = Math.trunc(xVel / 2)
+            yVel = Math.trunc(yVel / 2)
+            this.sprite.z = 10
+        } else {
+            this.sprite.z = 0
+        }
+        
+        this.sprite.setVelocity(xVel, yVel)
+        this.skin.setPosition(this.sprite.x, this.sprite.y)
+    }
+    
+    public shoot() {
+        if (this.slowDownVariable == 2) {
+            if (this.level == 0) {
+                this.projectiles.push(new playerProjectile())
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(180)
+                this.slowDownVariable = 0
+            }
+            
+            if (this.level == 1) {
+                this.projectiles.push(new playerProjectile())
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(180)
+                this.slowDownVariable = 0
+            }
+            
+        } else {
+            this.slowDownVariable += 1
+        }
+        
+    }
+    
+}
+
+let i = 0
+class Game {
+    hud: HUD
+    player: Player
+    projectiles: Projectile[]
+    enemies: Enemy[]
+    frameTimeList: number[]
+    prevRunTime: number
+    constructor() {
+        this.hud = new HUD()
+        this.player = new Player()
+        this.projectiles = []
+        this.enemies = [new Enemy("test", this.player)]
+        this.frameTimeList = []
+    }
+    
+    public gameOver() {
+        console.log("game over, you suck")
+        this.hud.gameOver()
+    }
+    
+    public collisionHandler() {
+        // print("collided!")
+        
+    }
+    
+    public collisionCheck() {
+        // spritekinds:
+        // 0 = player
+        // 1 = test projectile
+        // 2 = player projectile
+        // 3 = enemy projectile
+        // 4 = enemy
+        // 999 = hud
+        sprites.onOverlap(0, 1, function testOverlap() {
+            this.collisionHandler()
+        })
+        sprites.onOverlap(4, 2, function enemyDamaged(enemySprite: Sprite, projSprite: Sprite) {
+            let i: number;
+            // print("in handler")
+            let hitEnemy : Enemy = null
+            let hitProjectile : Projectile = null
+            let pos = -1
+            // print("enemies: " + str(len(gameObj.enemies)))
+            for (i = 0; i < gameObj.enemies.length; i++) {
+                // print("checking " + str(i))
+                if (gameObj.enemies[i].sprite == enemySprite) {
+                    // print("after comparison")
+                    hitEnemy = gameObj.enemies[i]
+                    // print("after assignment")
+                    break
+                }
+                
+            }
+            for (i = 0; i < gameObj.player.projectiles.length; i++) {
+                pos += 1
+                if (gameObj.player.projectiles[i].sprite == projSprite) {
+                    hitProjectile = gameObj.player.projectiles[i]
+                    break
+                }
+                
+            }
+            if (hitEnemy != null) {
+                hitEnemy.takeDamage()
+            }
+            
+            if (hitProjectile != null) {
+                sprites.destroy(hitProjectile.sprite)
+                gameObj.player.projectiles.removeAt(pos)
+            }
+            
+        })
+        sprites.onOverlap(0, 3, function playerDamaged(playerSprite: Sprite, projSprite: Sprite) {
+            let hitProjectile : Projectile = null
+            if (game.runtime() - this.player.lastHit >= 3000) {
+                // invulnerability handling
+                for (let enemy of gameObj.enemies) {
+                    for (let i = 0; i < enemy.projectiles.length; i++) {
+                        if (enemy.projectiles[i].sprite == projSprite) {
+                            hitProjectile = enemy.projectiles[i]
+                            if (hitProjectile != null) {
+                                sprites.destroy(hitProjectile.sprite)
+                                enemy.projectiles.removeAt(i)
+                            }
+                            
+                            break
+                        }
+                        
+                    }
+                }
+                gameObj.player.takeDamage()
+            }
+            
+        })
+    }
+    
+    public frametimes() {
+        let average: number;
+        this.frameTimeList.push(game.runtime() - this.prevRunTime)
+        this.prevRunTime = game.runtime()
+        if (this.frameTimeList.length == 60) {
+            for (let i of this.frameTimeList) {
+                average += Math.trunc(i)
+            }
+            average = average / 60
+            console.log("average frametime last 100 frames:" + ("" + average))
+            this.frameTimeList = []
+        }
+        
+    }
+    
+    public projectileTest() {
+        let curO: Projectile;
+        
+        if (i % 5 == 0) {
+            this.projectiles.push(new Projectile("projectile"))
+            // self.projectiles.homeTo(self.player.sprite.x, self.player.sprite.y)
+            for (let g = 0; g < this.projectiles.length; g++) {
+                curO = this.projectiles[g]
+                this.projectiles[this.projectiles.length - 1].setAngle(i)
+                if (i >= 360) {
+                    i = 0
+                }
+                
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    public projectileDestructor() {
+        let i: number;
+        let curO: Projectile;
+        let cur1: Projectile;
+        let cur2: Projectile;
+        let cur3: Enemy;
+        let width = scene.screenWidth()
+        let height = scene.screenHeight()
+        // test projectiles
+        if (this.projectiles.length > 0) {
+            for (i = 0; i < this.projectiles.length; i++) {
+                curO = this.projectiles[i]
+                if (curO.sprite.x < 0 - 15 || curO.sprite.x > width - 15 || curO.sprite.y < 0 - 15 || curO.sprite.y > height + 15) {
+                    sprites.destroy(curO.sprite)
+                    this.projectiles.removeAt(i)
+                }
+                
+            }
+        }
+        
+        // player projectiles
+        if (this.player.projectiles.length > 0) {
+            for (i = 0; i < this.player.projectiles.length; i++) {
+                cur1 = this.player.projectiles[i]
+                if (cur1.sprite.x < 0 - 15 || cur1.sprite.x > width - 15 || cur1.sprite.y < 0 - 15 || cur1.sprite.y > height + 15) {
+                    sprites.destroy(cur1.sprite)
+                    this.player.projectiles.removeAt(i)
+                }
+                
+            }
+        }
+        
+        // enemy projectiles
+        if (this.enemies.length > 0) {
+            for (let g of this.enemies) {
+                for (i = 0; i < g.projectiles.length; i++) {
+                    cur2 = g.projectiles[i]
+                    if (cur2.sprite.x < 0 - 15 || cur2.sprite.x > width - 15 || cur2.sprite.y < 0 - 15 || cur2.sprite.y > height + 15) {
+                        sprites.destroy(cur2.sprite)
+                        g.projectiles.removeAt(i)
+                    }
+                    
+                }
+            }
+        }
+        
+        // enemies
+        if (this.enemies.length > 0) {
+            i = 0
+            for (let enemy of this.enemies) {
+                cur3 = enemy
+                if (cur3.sprite.x < -15 || cur3.sprite.x > width - 15 || cur3.sprite.y < -15 || cur3.sprite.y > height + 15 || cur3.dead == true) {
+                    sprites.destroy(cur3.sprite)
+                    if (cur3.projectiles.length == 0) {
+                        this.enemies.removeAt(i)
+                    }
+                    
+                }
+                
+                i += 1
+            }
+        }
+        
+    }
+    
+    public waves() {
+        
+    }
+    
+    public enemyActions() {
+        for (let obj of this.enemies) {
+            obj.goRoute()
+        }
+    }
+    
+    public mainLoop() {
+        this.prevRunTime = 0
+        this.collisionCheck()
+        // self.frametimes()
+        game.onUpdate(function onUpdate() {
+            // print("frametime: " + str(game.runtime() - self.prevRunTime))
+            // self.projectileTest()
+            this.player.movementController()
+            this.projectileDestructor()
+            this.player.shoot()
+            if (this.player.sprite.x > 115) {
+                [this.player.sprite.setPosition(115, this.player.sprite.y), this.player.skin.setPosition(115, this.player.sprite.y)]
+            }
+            
+            if (this.player.health <= 0) {
+                this.gameOver()
+            }
+            
+            this.enemyActions()
+        })
+    }
+    
+}
+
+let gameObj = new Game()
+gameObj.mainLoop()
