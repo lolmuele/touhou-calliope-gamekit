@@ -12,14 +12,47 @@ class HUD {
         
     }
     
-    public gameOver() {
-        this.gameOverSprite = sprites.create(assets.image`gameOver`, 999)
+    public buildGameOver(continues: number, yes: boolean): Image {
+        let gameOverImage = assets.image`gameOver`
+        gameOverImage.printCenter("Game Over", 10, 2, image.font12)
+        gameOverImage.printCenter("Continue ?", 45, 1, image.font8)
+        gameOverImage.printCenter("" + continues + " Left", 55, 1, image.font8)
+        if (yes) {
+            gameOverImage.printCenter("> Yes <", 70, 5, image.font8)
+            gameOverImage.printCenter("No", 80, 6, image.font8)
+        } else if (!yes) {
+            gameOverImage.printCenter("Yes", 70, 6, image.font8)
+            gameOverImage.printCenter("> No <", 80, 5, image.font8)
+        }
+        
+        return gameOverImage
+    }
+    
+    public gameOver(continues: number) {
+        let yes = false
+        let gameOverImage = this.buildGameOver(continues, false)
+        this.gameOverSprite = sprites.create(gameOverImage, 999)
         this.gameOverSprite.z = 999
         this.gameOverSprite.setPosition(60, 60)
+        while (true) {
+            if (controller.up.isPressed() && !yes) {
+                gameOverImage = this.buildGameOver(continues, true)
+                this.gameOverSprite = sprites.create(gameOverImage, 999)
+                this.gameOverSprite.z = 999
+                this.gameOverSprite.setPosition(60, 60)
+            } else if (controller.down.isPressed() && yes) {
+                gameOverImage = this.buildGameOver(continues, false)
+                this.gameOverSprite = sprites.create(gameOverImage, 999)
+                this.gameOverSprite.z = 999
+                this.gameOverSprite.setPosition(60, 60)
+            }
+            
+        }
     }
     
 }
 
+// control.wait_micros(1000)
 // TODO: 
 // add enemies
 // need to make pathing work -kinda implemented
@@ -245,7 +278,7 @@ class Player {
         this.skin = sprites.create(assets.tile`marisa`)
         // self.skin.follow(self.sprite)
         this.skin.setPosition(this.sprite.x, this.sprite.y - 1)
-        this.health = 3
+        this.health = 0
         this.lastHit = -3000
     }
     
@@ -342,7 +375,7 @@ class Game {
     
     public gameOver() {
         console.log("game over, you suck")
-        this.hud.gameOver()
+        this.hud.gameOver(3)
     }
     
     public collisionHandler() {

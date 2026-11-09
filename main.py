@@ -8,10 +8,46 @@ class HUD:
         self.stageBackground.set_position(60, 60)
         pass
 
-    def gameOver(self):
-        self.gameOverSprite = sprites.create(assets.image("gameOver"), 999)
+    def buildGameOver(self, continues:int, yes:bool):
+        gameOverImage = assets.image("gameOver")
+        gameOverImage.print_center("Game Over", y=10, color=2, font=image.font12)
+        gameOverImage.print_center("Continue ?", y=45, color=1, font=image.font8)
+        gameOverImage.print_center(str(continues) + " Left", y=55, color=1, font=image.font8)
+        if yes:
+            gameOverImage.print_center("> Yes <", y=70, color=5, font=image.font8)
+            gameOverImage.print_center("No", y=80, color=6, font=image.font8)
+
+        elif not yes:
+            gameOverImage.print_center("Yes", y=70, color=6, font=image.font8)
+            gameOverImage.print_center("> No <", y=80, color=5, font=image.font8)
+
+        return gameOverImage
+
+    def gameOver(self, continues):
+        yes = False
+        gameOverImage = self.buildGameOver(continues, False)
+        self.gameOverSprite = sprites.create(gameOverImage, 999)
         self.gameOverSprite.z = 999
         self.gameOverSprite.set_position(60, 60)
+
+        while True: 
+
+            if controller.up.is_pressed() and not yes:
+                gameOverImage = self.buildGameOver(continues, True)
+                self.gameOverSprite = sprites.create(gameOverImage, 999)
+                self.gameOverSprite.z = 999
+                self.gameOverSprite.set_position(60, 60)
+            
+            elif controller.down.is_pressed() and yes:
+                gameOverImage = self.buildGameOver(continues, False)
+                self.gameOverSprite = sprites.create(gameOverImage, 999)
+                self.gameOverSprite.z = 999
+                self.gameOverSprite.set_position(60, 60)
+
+            #control.wait_micros(1000)
+
+                
+        
         
 
 #TODO: 
@@ -204,7 +240,7 @@ class Player:
         self.skin = sprites.create(assets.tile("""marisa"""))
         #self.skin.follow(self.sprite)
         self.skin.set_position(self.sprite.x , self.sprite.y - 1)
-        self.health = 3
+        self.health = 0
         self.lastHit = -3000 #so you're not invincible at the start of the game
     
     
@@ -287,7 +323,7 @@ class Game:
 
     def gameOver(self):
         print("game over, you suck")
-        self.hud.gameOver()
+        self.hud.gameOver(continues=3)
 
     def collisionHandler(self):
         #print("collided!")

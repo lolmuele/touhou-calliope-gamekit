@@ -29,17 +29,17 @@
         "tilemapTile": true,
         "displayName": "redBall"
     },
-    "tile6": {
-        "data": "hwQQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiIgAAAAAAIAAAAgAAAAACIAIgAAAAIAAiIgACAAAgICIiAgIAACAgIiICAgAAIAAiIgACAAAAAiACIAAAAAAgAAACAAAAAAAiIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
-        "mimeType": "image/x-mkcd-f4",
-        "tilemapTile": true,
-        "displayName": "redBall0"
-    },
     "tile7": {
         "data": "hwQQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
         "mimeType": "image/x-mkcd-f4",
         "tilemapTile": true,
         "displayName": "damageFlicker"
+    },
+    "tile6": {
+        "data": "hwQQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiIgAAAAAAIgAAIgAAAAACIAIgAAAAIAAiIgACAAAgICIiAgIAACAgIiICAgAAIAAiIgACAAAAAiACIAAAAAAiAAAiAAAAAAAiIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+        "mimeType": "image/x-mkcd-f4",
+        "tilemapTile": true,
+        "displayName": "redBall0"
     },
     "*": {
         "mimeType": "image/x-mkcd-f4",
