@@ -422,16 +422,16 @@ class Game {
     
     public frametimes(t1: number, t2: number) {
         let average: number;
-        this.frameTimeList.push((t1 - t2) * 1000)
+        this.frameTimeList.push(t1 - t2)
         this.prevRunTime = game.runtime()
         if (this.frameTimeList.length == 60) {
             average = 0
             for (let i of this.frameTimeList) {
-                average += Math.trunc(i)
+                average += i
             }
             average = average / 60
             // print("average frametime last 100 frames:" + str(average))
-            this.player.skin.sayText("" + Math.trunc(average))
+            this.player.skin.sayText("" + average * 1000)
             this.frameTimeList = []
         }
         

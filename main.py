@@ -355,15 +355,15 @@ class Game:
         sprites.on_overlap(0, 3, playerDamaged)
 
     def frametimes(self, t1, t2):
-        self.frameTimeList.append((t1 - t2)*1000)
+        self.frameTimeList.append((t1 - t2))
         self.prevRunTime = game.runtime()
         if len(self.frameTimeList) == 60:
             average = 0
             for i in self.frameTimeList:
-                average += int(i)
+                average += i
             average = average / 60
             #print("average frametime last 100 frames:" + str(average))
-            self.player.skin.say_text(str(int(average)))
+            self.player.skin.say_text(str(average*1000))
             
             self.frameTimeList = []
 
