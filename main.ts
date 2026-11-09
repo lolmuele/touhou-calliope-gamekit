@@ -37,6 +37,14 @@ class HUD {
 // visuals (ugh)
 // add menu
 // add drops
+// had a chance to test on real hardware today and...
+// performance is pretty horrendous:
+// 40+ ms frametime, possibly a leak:
+// about double that of the ~20ms in the web simulator
+//    not sure if it's actually slowing down increasingly or if on-screen console prints are so heavy on the calliope,
+//    it feels like it's only slowing down when console output is on, while it was on the frametimes went to abt 65+ms gradually
+//    but i feel like i shouldn't be leaking objects so idk
+// are there major performance improvements i can make rn?
 class Projectile {
     sprite: Sprite
     xVel: number
@@ -278,6 +286,10 @@ class Player {
             this.sprite.z = 0
         }
         
+        if (controller.A.isPressed()) {
+            this.bomb()
+        }
+        
         this.sprite.setVelocity(xVel, yVel)
         this.skin.setPosition(this.sprite.x, this.sprite.y)
     }
@@ -301,6 +313,11 @@ class Player {
         } else {
             this.slowDownVariable += 1
         }
+        
+    }
+    
+    public bomb() {
+        console.log("bomb")
         
     }
     
@@ -407,6 +424,7 @@ class Game {
         this.frameTimeList.push(game.runtime() - this.prevRunTime)
         this.prevRunTime = game.runtime()
         if (this.frameTimeList.length == 60) {
+            average = 0
             for (let i of this.frameTimeList) {
                 average += Math.trunc(i)
             }
@@ -514,10 +532,9 @@ class Game {
     public mainLoop() {
         this.prevRunTime = 0
         this.collisionCheck()
-        // self.frametimes()
         game.onUpdate(function onUpdate() {
             // print("frametime: " + str(game.runtime() - self.prevRunTime))
-            // self.projectileTest()
+            this.projectileTest()
             this.player.movementController()
             this.projectileDestructor()
             this.player.shoot()
@@ -530,6 +547,7 @@ class Game {
             }
             
             this.enemyActions()
+            this.frametimes()
         })
     }
     

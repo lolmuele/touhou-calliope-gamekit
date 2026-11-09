@@ -35,6 +35,15 @@ class HUD:
 #add menu
 #add drops
 
+#had a chance to test on real hardware today and...
+#performance is pretty horrendous:
+#40+ ms frametime, possibly a leak:
+#about double that of the ~20ms in the web simulator
+#   not sure if it's actually slowing down increasingly or if on-screen console prints are so heavy on the calliope,
+#   it feels like it's only slowing down when console output is on, while it was on the frametimes went to abt 65+ms gradually
+#   but i feel like i shouldn't be leaking objects so idk
+#are there major performance improvements i can make rn?
+
 class Projectile:
 
     def __init__(self, spriteName = "projectile", spriteKind = 1, xVel = 0, yVel = 0, maxSpeed = 50):
@@ -238,6 +247,9 @@ class Player:
         else:
             self.sprite.z = 0
 
+        if controller.A.is_pressed():
+            self.bomb()
+
         self.sprite.set_velocity(xVel, yVel)
         self.skin.set_position(self.sprite.x, self.sprite.y)
 
@@ -257,6 +269,10 @@ class Player:
                 self.slowDownVariable = 0
         else:
             self.slowDownVariable += 1
+
+    def bomb(self):
+        print("bomb")
+        pass
 
 i = 0
 
@@ -341,6 +357,7 @@ class Game:
         self.frameTimeList.append(game.runtime() - self.prevRunTime)
         self.prevRunTime = game.runtime()
         if len(self.frameTimeList) == 60:
+            average = 0
             for i in self.frameTimeList:
                 average += int(i)
             average = average / 60
@@ -415,14 +432,14 @@ class Game:
         self.collisionCheck()
         def onUpdate():
             #print("frametime: " + str(game.runtime() - self.prevRunTime))
-            #self.projectileTest()
+            self.projectileTest()
             self.player.movementController()
             self.projectileDestructor()
             self.player.shoot()
             if self.player.sprite.x > 115: self.player.sprite.set_position(115, self.player.sprite.y), self.player.skin.set_position(115, self.player.sprite.y)
             if self.player.health <= 0: self.gameOver()
             self.enemyActions()
-            #self.frametimes()
+            self.frametimes()
 
 
         game.on_update(onUpdate)
