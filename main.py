@@ -1,9 +1,9 @@
 class HUD:
     def __init__(self):
-        self.background = sprites.create(assets.image("hudBackground"), 999)
+        self.background: Sprite = sprites.create(assets.image("hudBackground"), 999)
         self.background.z = 999
         self.background.set_position(140, 60)
-        self.stageBackground = sprites.create(assets.image("stageBackground"), 999)
+        self.stageBackground: Sprite = sprites.create(assets.image("stageBackground"), 999)
         self.stageBackground.z = -100
         self.stageBackground.set_position(60, 60)
         pass
@@ -24,27 +24,13 @@ class HUD:
         return gameOverImage
 
     def gameOver(self, continues):
-        yes = False
         gameOverImage = self.buildGameOver(continues, False)
-        self.gameOverSprite = sprites.create(gameOverImage, 999)
+        self.gameOverSprite: Sprite = sprites.create(gameOverImage, 999)
         self.gameOverSprite.z = 999
         self.gameOverSprite.set_position(60, 60)
 
-        while True: 
 
-            if controller.up.is_pressed() and not yes:
-                gameOverImage = self.buildGameOver(continues, True)
-                self.gameOverSprite = sprites.create(gameOverImage, 999)
-                self.gameOverSprite.z = 999
-                self.gameOverSprite.set_position(60, 60)
-            
-            elif controller.down.is_pressed() and yes:
-                gameOverImage = self.buildGameOver(continues, False)
-                self.gameOverSprite = sprites.create(gameOverImage, 999)
-                self.gameOverSprite.z = 999
-                self.gameOverSprite.set_position(60, 60)
 
-            #control.wait_micros(1000)
 
                 
         
@@ -61,7 +47,7 @@ class HUD:
 #add health/damage handling
     #player can take damage and has health -done
     #iframes after hit -works
-    #game over, continue & restart
+    #game over, continue & restart -kinda, really basic but you can respawn
 
 #add bombs
 #add hud functionality
@@ -240,7 +226,7 @@ class Player:
         self.skin = sprites.create(assets.tile("""marisa"""))
         #self.skin.follow(self.sprite)
         self.skin.set_position(self.sprite.x , self.sprite.y - 1)
-        self.health = 0
+        self.health = 3
         self.lastHit = -3000 #so you're not invincible at the start of the game
     
     
@@ -320,10 +306,39 @@ class Game:
         self.enemies: List[Enemy] = [Enemy("test", self.player)]
         self.frameTimeList = []
         info.show_score(True)
+        self.gameOverActive = False
+        self.continues = 3
+        self.lives = 3
 
     def gameOver(self):
-        print("game over, you suck")
-        self.hud.gameOver(continues=3)
+
+        if not self.gameOverActive:
+            self.hud.gameOver(self.continues)
+            self.gameOverActive = True
+
+        else:
+        
+            if controller.up.is_pressed():
+                
+                self.hud.gameOverSprite.set_image(self.hud.buildGameOver(self.continues, True))  # = sprites.create(self.hud.buildGameOver(self.continues, True), 999)
+
+                yes = True
+                    
+            elif controller.down.is_pressed():
+                
+                # i also know that selecting no still makes you respawn, will fix that too
+                self.hud.gameOverSprite.set_image(self.hud.buildGameOver(self.continues, False))
+
+                yes = False
+
+            elif controller.A.is_pressed():
+                
+                self.continues -= 1 # i know you basically have infinite continues because you can go negative, i'll fix it later but it's not pressing rn
+                self.player.health = self.lives
+                self.player.lastHit = game.runtime() 
+                sprites.destroy(self.hud.gameOverSprite)
+                self.gameOverActive = False
+                
 
     def collisionHandler(self):
         #print("collided!")
@@ -473,14 +488,16 @@ class Game:
         def onUpdate():
             #print("frametime: " + str(game.runtime() - self.prevRunTime))
             startOfUpdate = control.micros()
-            self.projectileTest()
-            self.player.movementController()
-            self.projectileDestructor()
-            self.player.shoot()
-            if self.player.sprite.x > 115: self.player.sprite.set_position(115, self.player.sprite.y), self.player.skin.set_position(115, self.player.sprite.y)
+            if not self.gameOverActive:
+                self.projectileTest()
+                self.player.movementController()
+                self.projectileDestructor()
+                self.player.shoot()
+                if self.player.sprite.x > 115: self.player.sprite.set_position(115, self.player.sprite.y), self.player.skin.set_position(115, self.player.sprite.y)
+                self.enemyActions()
             if self.player.health <= 0: self.gameOver()
-            self.enemyActions()
             self.frametimes(startOfUpdate, control.micros())
+
 
 
         game.on_update(onUpdate)

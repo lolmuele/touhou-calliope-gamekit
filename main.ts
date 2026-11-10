@@ -29,30 +29,14 @@ class HUD {
     }
     
     public gameOver(continues: number) {
-        let yes = false
         let gameOverImage = this.buildGameOver(continues, false)
         this.gameOverSprite = sprites.create(gameOverImage, 999)
         this.gameOverSprite.z = 999
         this.gameOverSprite.setPosition(60, 60)
-        while (true) {
-            if (controller.up.isPressed() && !yes) {
-                gameOverImage = this.buildGameOver(continues, true)
-                this.gameOverSprite = sprites.create(gameOverImage, 999)
-                this.gameOverSprite.z = 999
-                this.gameOverSprite.setPosition(60, 60)
-            } else if (controller.down.isPressed() && yes) {
-                gameOverImage = this.buildGameOver(continues, false)
-                this.gameOverSprite = sprites.create(gameOverImage, 999)
-                this.gameOverSprite.z = 999
-                this.gameOverSprite.setPosition(60, 60)
-            }
-            
-        }
     }
     
 }
 
-// control.wait_micros(1000)
 // TODO: 
 // add enemies
 // need to make pathing work -kinda implemented
@@ -62,7 +46,7 @@ class HUD {
 // add health/damage handling
 // player can take damage and has health -done
 // iframes after hit -works
-// game over, continue & restart
+// game over, continue & restart -kinda, really basic but you can respawn
 // add bombs
 // add hud functionality
 // make hitbox not move within the sprite -works i'm pretty sure
@@ -278,7 +262,7 @@ class Player {
         this.skin = sprites.create(assets.tile`marisa`)
         // self.skin.follow(self.sprite)
         this.skin.setPosition(this.sprite.x, this.sprite.y - 1)
-        this.health = 0
+        this.health = 3
         this.lastHit = -3000
     }
     
@@ -363,6 +347,9 @@ class Game {
     projectiles: Projectile[]
     enemies: Enemy[]
     frameTimeList: number[]
+    gameOverActive: boolean
+    continues: number
+    lives: number
     prevRunTime: number
     constructor() {
         this.hud = new HUD()
@@ -371,11 +358,33 @@ class Game {
         this.enemies = [new Enemy("test", this.player)]
         this.frameTimeList = []
         info.showScore(true)
+        this.gameOverActive = false
+        this.continues = 3
+        this.lives = 3
     }
     
     public gameOver() {
-        console.log("game over, you suck")
-        this.hud.gameOver(3)
+        let yes: boolean;
+        if (!this.gameOverActive) {
+            this.hud.gameOver(this.continues)
+            this.gameOverActive = true
+        } else if (controller.up.isPressed()) {
+            this.hud.gameOverSprite.setImage(this.hud.buildGameOver(this.continues, true))
+            //  = sprites.create(self.hud.buildGameOver(self.continues, True), 999)
+            yes = true
+        } else if (controller.down.isPressed()) {
+            //  i also know that selecting no still makes you respawn, will fix that too
+            this.hud.gameOverSprite.setImage(this.hud.buildGameOver(this.continues, false))
+            yes = false
+        } else if (controller.A.isPressed()) {
+            this.continues -= 1
+            //  i know you basically have infinite continues because you can go negative, i'll fix it later but it's not pressing rn
+            this.player.health = this.lives
+            this.player.lastHit = game.runtime()
+            sprites.destroy(this.hud.gameOverSprite)
+            this.gameOverActive = false
+        }
+        
     }
     
     public collisionHandler() {
@@ -571,19 +580,22 @@ class Game {
         game.onUpdate(function onUpdate() {
             // print("frametime: " + str(game.runtime() - self.prevRunTime))
             let startOfUpdate = control.micros()
-            this.projectileTest()
-            this.player.movementController()
-            this.projectileDestructor()
-            this.player.shoot()
-            if (this.player.sprite.x > 115) {
-                [this.player.sprite.setPosition(115, this.player.sprite.y), this.player.skin.setPosition(115, this.player.sprite.y)]
+            if (!this.gameOverActive) {
+                this.projectileTest()
+                this.player.movementController()
+                this.projectileDestructor()
+                this.player.shoot()
+                if (this.player.sprite.x > 115) {
+                    [this.player.sprite.setPosition(115, this.player.sprite.y), this.player.skin.setPosition(115, this.player.sprite.y)]
+                }
+                
+                this.enemyActions()
             }
             
             if (this.player.health <= 0) {
                 this.gameOver()
             }
             
-            this.enemyActions()
             this.frametimes(startOfUpdate, control.micros())
         })
     }
