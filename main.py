@@ -322,16 +322,16 @@ class Game:
                 
                 self.hud.gameOverSprite.set_image(self.hud.buildGameOver(self.continues, True))  # = sprites.create(self.hud.buildGameOver(self.continues, True), 999)
 
-                yes = True
+                self.yes = True
                     
             elif controller.down.is_pressed():
                 
                 # i also know that selecting no still makes you respawn, will fix that too
                 self.hud.gameOverSprite.set_image(self.hud.buildGameOver(self.continues, False))
 
-                yes = False
+                self.yes = False
 
-            elif controller.A.is_pressed():
+            elif controller.A.is_pressed() and self.yes:
                 
                 self.continues -= 1 # i know you basically have infinite continues because you can go negative, i'll fix it later but it's not pressing rn
                 self.player.health = self.lives

@@ -350,6 +350,7 @@ class Game {
     gameOverActive: boolean
     continues: number
     lives: number
+    yes: boolean
     prevRunTime: number
     constructor() {
         this.hud = new HUD()
@@ -364,19 +365,18 @@ class Game {
     }
     
     public gameOver() {
-        let yes: boolean;
         if (!this.gameOverActive) {
             this.hud.gameOver(this.continues)
             this.gameOverActive = true
         } else if (controller.up.isPressed()) {
             this.hud.gameOverSprite.setImage(this.hud.buildGameOver(this.continues, true))
             //  = sprites.create(self.hud.buildGameOver(self.continues, True), 999)
-            yes = true
+            this.yes = true
         } else if (controller.down.isPressed()) {
             //  i also know that selecting no still makes you respawn, will fix that too
             this.hud.gameOverSprite.setImage(this.hud.buildGameOver(this.continues, false))
-            yes = false
-        } else if (controller.A.isPressed()) {
+            this.yes = false
+        } else if (controller.A.isPressed() && this.yes) {
             this.continues -= 1
             //  i know you basically have infinite continues because you can go negative, i'll fix it later but it's not pressing rn
             this.player.health = this.lives
