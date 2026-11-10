@@ -31,8 +31,7 @@
     ],
     "preferredEditor": "pyprj",
     "theme": "microcode",
-    "palette":
-        [
+    "palette": [
         "#000000",
         "#FFFFFF",
         "#F4423F",
@@ -49,5 +48,5 @@
         "#EDC1B9",
         "#DB6B62",
         "#000000"
-        ]
+    ]
 }

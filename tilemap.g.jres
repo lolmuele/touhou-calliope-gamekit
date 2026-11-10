@@ -17,12 +17,6 @@
         "tilemapTile": true,
         "displayName": "marisaShot"
     },
-    "tile4": {
-        "data": "hwQQABAAAAAAAAAAAAAAAABgAAAA8AAAAPYAAAD//wAA9hABEf//DwD/EBER//8PYP8VERH//wD2/1UV8f/xAP//VVURH/8F//9VVRHx/1Xw/1VVER//BQD/VRHx//EPAP8QERH//w8A/xAREf//BgD/EAER9mYAAPAAAABmAAAAAAAAAAAAAA==",
-        "mimeType": "image/x-mkcd-f4",
-        "tilemapTile": true,
-        "displayName": "marisa"
-    },
     "tile5": {
         "data": "hwQQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiIgAAAAAAIgAAIgAAAAACIAIgAAAAIAAiIgACAAAgICIiAgIAACAgIiICAgAAIAAiIgACAAAAAiACIAAAAAAiAAAiAAAAAAAiIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
         "mimeType": "image/x-mkcd-f4",
@@ -35,11 +29,11 @@
         "tilemapTile": true,
         "displayName": "damageFlicker"
     },
-    "tile6": {
-        "data": "hwQQABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiIgAAAAAAIgAAIgAAAAACIAIgAAAAIAAiIgACAAAgICIiAgIAACAgIiICAgAAIAAiIgACAAAAAiACIAAAAAAiAAAiAAAAAAAiIgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+    "tile4": {
+        "data": "hwQQABAAAAAAAAAAAAAAAADAAAAA8AAAAPwAAAD//wAA/BABEf//DwD/EBER//8PwP8VERH//wD8/1UV8f/xAP//VVURH/8F//9VVRHx/1Xw/1VVER//BQD/VRHx//EPAP8QERH//w8A/xAREf//DAD/EAER/8wAAPAAAADMAAAAAAAAAAAAAA==",
         "mimeType": "image/x-mkcd-f4",
         "tilemapTile": true,
-        "displayName": "redBall0"
+        "displayName": "marisa"
     },
     "*": {
         "mimeType": "image/x-mkcd-f4",

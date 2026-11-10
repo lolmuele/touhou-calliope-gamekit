@@ -111,13 +111,14 @@ class Projectile {
 
 class playerProjectile extends Projectile {
     constructor() {
-        super("marisaShot", 2, 0, 0, 200)
-        this.sprite = sprites.create(assets.tile`marisaShot`, 2)
-        this.sprite.setScale(0.8, ScaleAnchor.Middle)
+        super("marisaShot", 2, 0, 0, 250)
+        // self.sprite = sprites.create(assets.tile("marisaShot"), 2)
+        this.sprite = sprites.create(assets.image`marisaShotImage2`, 2)
     }
     
 }
 
+// self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
 class redCircleProjectile extends Projectile {
     constructor() {
         super("redBall", 2, 0, 0, 30)

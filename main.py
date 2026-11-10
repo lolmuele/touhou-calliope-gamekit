@@ -13,6 +13,7 @@ class HUD:
         gameOverImage.print_center("Game Over", y=10, color=2, font=image.font12)
         gameOverImage.print_center("Continue ?", y=45, color=1, font=image.font8)
         gameOverImage.print_center(str(continues) + " Left", y=55, color=1, font=image.font8)
+        
         if yes:
             gameOverImage.print_center("> Yes <", y=70, color=5, font=image.font8)
             gameOverImage.print_center("No", y=80, color=6, font=image.font8)
@@ -28,11 +29,7 @@ class HUD:
         self.gameOverSprite: Sprite = sprites.create(gameOverImage, 999)
         self.gameOverSprite.z = 999
         self.gameOverSprite.set_position(60, 60)
-
-
-
-
-                
+    
         
         
 
@@ -107,9 +104,10 @@ class Projectile:
 class playerProjectile(Projectile):
 
     def __init__(self):
-        super().__init__(spriteName = "marisaShot", maxSpeed = 200, spriteKind = 2)
-        self.sprite = sprites.create(assets.tile("marisaShot"), 2)
-        self.sprite.set_scale(0.8, ScaleAnchor.MIDDLE)
+        super().__init__(spriteName = "marisaShot", maxSpeed = 250, spriteKind = 2)
+        #self.sprite = sprites.create(assets.tile("marisaShot"), 2)
+        self.sprite = sprites.create(assets.image("marisaShotImage2"), 2)
+        #self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
 
 class redCircleProjectile(Projectile):
     def __init__(self):
