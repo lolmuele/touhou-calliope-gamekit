@@ -1,10 +1,9 @@
 class HUD:
 
     def __init__(self):
-        self.livesStars: List[Sprite] = []
-        self.bombsStars: List[Sprite] = []
-        self.powerBar: List[Sprite] = []
-        #self.hudImage = assets.image("hudBackground")
+
+        self.hudImage = assets.image("hudBackground")
+        self.hudImage.print_center("EOMD", y = 108, color = 4, font = image.font5)
         self.background: Sprite = sprites.create(assets.image("hudBackground"), 999)
         self.background.z = 999
         self.background.set_position(140, 60)
@@ -30,8 +29,8 @@ class HUD:
 
         return gameOverImage
     
-    def buildHud(self, highScore: int = 0, score: int = 0, lives: int = 3, bombs: int = 3, power: int = 100, graze: int = 0, point:int = 0):
-        hudImage = assets.image("hudBackground")
+    def buildHud(self, highScore: int = 0, score: int = 0, lives: int = 0, bombs: int = 0, power: int = 0, graze: int = 0, point:int = 0):
+        hudImage = self.hudImage.clone()
         hudImage.print_center("HiSc", y = 10, color = 9, font = image.font5)
         hudImage.print_center(str(highScore), y = 17, color = 10, font = image.font5)
         hudImage.print_center("Score", y = 23, color = 9, font = image.font5)
@@ -39,33 +38,18 @@ class HUD:
 
         hudImage.print_center("Lives", y = 35, color = 9, font = image.font5)
         for i in range(lives):
-            star = sprites.create(assets.image("livesStar"))
-            star.set_position(131 + i * 9, 46)
-            star.z = 1000
-            self.livesStars.append(star)
+            hudImage.draw_transparent_image(assets.image("livesStar"), 7 + i * 9, 42)
 
         hudImage.print_center("Bombs", y = 53, color = 9, font = image.font5)
         for i in range(bombs):
-            star = sprites.create(assets.image("bombsStar"))
-            star.set_position(131 + i * 9, 64)
-            star.z = 1000
-            self.bombsStars.append(star)
+            hudImage.draw_transparent_image(assets.image("bombsStar"), 7 + i * 9, 60)
             
         hudImage.print_center("Power", y = 70, color = 9, font = image.font5)
-        
-        # for i in range((128 // power if power != 0 else 0) * 28):
-        #     barPart = sprites.create(assets.image("barPart"))
-        #     barPart.set_position(127 + i, 81)
-        #     barPart.z = 999
-        #     self.powerBar.append(barPart)
+        hudImage.fill_rect(6, 78, 28 * power // 128, 8, 9)
+        hudImage.print_center(str(power if power < 128 else " max") + "  ", y = 79, color = 10, font = image.font5)
 
-        hudImage.fill_rect(127, 81, 100, 8, 9)
-
-        hudImage.print_center(str(power if power < 128 else "max") + "  ", y = 79, color = 10, font = image.font5)
-
-        
-
-
+        hudImage.print_center("Graze", y = 88, color = 9, font = image.font5)
+        hudImage.print_center(str(graze), y = 95, color = 10, font = image.font5)
         self.background.set_image(hudImage)
 
     def gameOver(self, continues):
@@ -275,6 +259,8 @@ class Player:
         self.skin = sprites.create(assets.tile("""marisa"""))
         self.skin.set_position(self.sprite.x , self.sprite.y - 1)
         self.health = 3
+        self.bombs = 3
+        self.power = 0
         self.lastHit = -3000 #so you're not invincible at the start of the game
         #self.spawnLasers()
         self.Lasers = False
@@ -398,6 +384,9 @@ class Game:
         self.continues = 3
         self.lives = 3
         self.nextWave = 0
+        self.highScore = 0
+        self.score = 0
+        self.graze = 0
 
     def gameOver(self):
 
@@ -580,7 +569,7 @@ class Game:
         self.prevRunTime = 0
         self.collisionCheck()
         game.stats = True
-        self.hud.buildHud()
+        self.hud.buildHud(highScore = self.highScore, score = self.score, lives = self.player.health, bombs = self.player.bombs, power = self.player.power, graze = self.graze)
         def onUpdate():
             #print("frametime: " + str(game.runtime() - self.prevRunTime))
             startOfUpdate = control.micros()

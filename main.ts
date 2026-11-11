@@ -1,15 +1,11 @@
 class HUD {
-    livesStars: Sprite[]
-    bombsStars: Sprite[]
-    powerBar: Sprite[]
+    hudImage: Image
     background: Sprite
     stageBackground: Sprite
     gameOverSprite: Sprite
     constructor() {
-        this.livesStars = []
-        this.bombsStars = []
-        this.powerBar = []
-        // self.hudImage = assets.image("hudBackground")
+        this.hudImage = assets.image`hudBackground`
+        this.hudImage.printCenter("EOMD", 108, 4, image.font5)
         this.background = sprites.create(assets.image`hudBackground`, 999)
         this.background.z = 999
         this.background.setPosition(140, 60)
@@ -35,36 +31,26 @@ class HUD {
         return gameOverImage
     }
     
-    public buildHud(highScore: number = 0, score: number = 0, lives: number = 3, bombs: number = 3, power: number = 100, graze: number = 0, point: number = 0) {
+    public buildHud(highScore: number = 0, score: number = 0, lives: number = 0, bombs: number = 0, power: number = 0, graze: number = 0, point: number = 0) {
         let i: number;
-        let star: Sprite;
-        let hudImage = assets.image`hudBackground`
+        let hudImage = this.hudImage.clone()
         hudImage.printCenter("HiSc", 10, 9, image.font5)
         hudImage.printCenter("" + highScore, 17, 10, image.font5)
         hudImage.printCenter("Score", 23, 9, image.font5)
         hudImage.printCenter("" + score, 29, 10, image.font5)
         hudImage.printCenter("Lives", 35, 9, image.font5)
         for (i = 0; i < lives; i++) {
-            star = sprites.create(assets.image`livesStar`)
-            star.setPosition(131 + i * 9, 46)
-            star.z = 1000
-            this.livesStars.push(star)
+            hudImage.drawTransparentImage(assets.image`livesStar`, 7 + i * 9, 42)
         }
         hudImage.printCenter("Bombs", 53, 9, image.font5)
         for (i = 0; i < bombs; i++) {
-            star = sprites.create(assets.image`bombsStar`)
-            star.setPosition(131 + i * 9, 64)
-            star.z = 1000
-            this.bombsStars.push(star)
+            hudImage.drawTransparentImage(assets.image`bombsStar`, 7 + i * 9, 60)
         }
         hudImage.printCenter("Power", 70, 9, image.font5)
-        //  for i in range((128 // power if power != 0 else 0) * 28):
-        //      barPart = sprites.create(assets.image("barPart"))
-        //      barPart.set_position(127 + i, 81)
-        //      barPart.z = 999
-        //      self.powerBar.append(barPart)
-        hudImage.fillRect(127, 81, 100, 8, 9)
-        hudImage.printCenter("" + (power < 128 ? power : "max") + "  ", 79, 10, image.font5)
+        hudImage.fillRect(6, 78, Math.idiv(28 * power, 128), 8, 9)
+        hudImage.printCenter("" + (power < 128 ? power : " max") + "  ", 79, 10, image.font5)
+        hudImage.printCenter("Graze", 88, 9, image.font5)
+        hudImage.printCenter("" + graze, 95, 10, image.font5)
         this.background.setImage(hudImage)
     }
     
@@ -302,6 +288,8 @@ class Player {
     slowDownVariable: number
     skin: Sprite
     health: number
+    bombs: number
+    power: number
     lastHit: number
     Lasers: boolean
     l1: Sprite
@@ -316,6 +304,8 @@ class Player {
         this.skin = sprites.create(assets.tile`marisa`)
         this.skin.setPosition(this.sprite.x, this.sprite.y - 1)
         this.health = 3
+        this.bombs = 3
+        this.power = 0
         this.lastHit = -3000
         // so you're not invincible at the start of the game
         // self.spawnLasers()
@@ -448,6 +438,9 @@ class Game {
     continues: number
     lives: number
     nextWave: number
+    highScore: number
+    score: number
+    graze: number
     yes: boolean
     prevRunTime: number
     constructor() {
@@ -461,6 +454,9 @@ class Game {
         this.continues = 3
         this.lives = 3
         this.nextWave = 0
+        this.highScore = 0
+        this.score = 0
+        this.graze = 0
     }
     
     public gameOver() {
@@ -683,7 +679,7 @@ class Game {
         this.prevRunTime = 0
         this.collisionCheck()
         game.stats = true
-        this.hud.buildHud()
+        this.hud.buildHud(this.highScore, this.score, this.player.health, this.player.bombs, this.player.power, this.graze)
         game.onUpdate(function onUpdate() {
             // print("frametime: " + str(game.runtime() - self.prevRunTime))
             let startOfUpdate = control.micros()
