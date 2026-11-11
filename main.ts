@@ -1,8 +1,15 @@
 class HUD {
+    livesStars: Sprite[]
+    bombsStars: Sprite[]
+    powerBar: Sprite[]
     background: Sprite
     stageBackground: Sprite
     gameOverSprite: Sprite
     constructor() {
+        this.livesStars = []
+        this.bombsStars = []
+        this.powerBar = []
+        // self.hudImage = assets.image("hudBackground")
         this.background = sprites.create(assets.image`hudBackground`, 999)
         this.background.z = 999
         this.background.setPosition(140, 60)
@@ -19,13 +26,46 @@ class HUD {
         gameOverImage.printCenter("" + continues + " Left", 55, 1, image.font8)
         if (yes) {
             gameOverImage.printCenter("> Yes <", 70, 5, image.font8)
-            gameOverImage.printCenter("No", 80, 6, image.font8)
+            gameOverImage.printCenter("No", 80, 2, image.font8)
         } else if (!yes) {
-            gameOverImage.printCenter("Yes", 70, 6, image.font8)
+            gameOverImage.printCenter("Yes", 70, 2, image.font8)
             gameOverImage.printCenter("> No <", 80, 5, image.font8)
         }
         
         return gameOverImage
+    }
+    
+    public buildHud(highScore: number = 0, score: number = 0, lives: number = 3, bombs: number = 3, power: number = 100, graze: number = 0, point: number = 0) {
+        let i: number;
+        let star: Sprite;
+        let hudImage = assets.image`hudBackground`
+        hudImage.printCenter("HiSc", 10, 9, image.font5)
+        hudImage.printCenter("" + highScore, 17, 10, image.font5)
+        hudImage.printCenter("Score", 23, 9, image.font5)
+        hudImage.printCenter("" + score, 29, 10, image.font5)
+        hudImage.printCenter("Lives", 35, 9, image.font5)
+        for (i = 0; i < lives; i++) {
+            star = sprites.create(assets.image`livesStar`)
+            star.setPosition(131 + i * 9, 46)
+            star.z = 1000
+            this.livesStars.push(star)
+        }
+        hudImage.printCenter("Bombs", 53, 9, image.font5)
+        for (i = 0; i < bombs; i++) {
+            star = sprites.create(assets.image`bombsStar`)
+            star.setPosition(131 + i * 9, 64)
+            star.z = 1000
+            this.bombsStars.push(star)
+        }
+        hudImage.printCenter("Power", 70, 9, image.font5)
+        //  for i in range((128 // power if power != 0 else 0) * 28):
+        //      barPart = sprites.create(assets.image("barPart"))
+        //      barPart.set_position(127 + i, 81)
+        //      barPart.z = 999
+        //      self.powerBar.append(barPart)
+        hudImage.fillRect(127, 81, 100, 8, 9)
+        hudImage.printCenter("" + (power < 128 ? power : "max") + "  ", 79, 10, image.font5)
+        this.background.setImage(hudImage)
     }
     
     public gameOver(continues: number) {
@@ -119,15 +159,25 @@ class playerProjectile extends Projectile {
 }
 
 // self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
-class redCircleProjectile extends Projectile {
+class marisaLaser extends Projectile {
     constructor() {
-        super("redBall", 2, 0, 0, 30)
-        this.sprite = sprites.create(assets.tile`redBall`, 3)
-        this.sprite.setScale(0.8, ScaleAnchor.Middle)
+        super("marisaLaser", 2, 0, 0, 250)
+        // self.sprite = sprites.create(assets.tile("marisaShot"), 2)
+        this.sprite = sprites.create(assets.image`marisaLaser`, 2)
     }
     
 }
 
+// self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
+class redCircleProjectile extends Projectile {
+    constructor() {
+        super("redBall", 2, 0, 0, 30)
+        this.sprite = sprites.create(assets.tile`redBall`, 3)
+    }
+    
+}
+
+// self.sprite.set_scale(0.8, ScaleAnchor.MIDDLE)
 class Enemy {
     sprite: Sprite
     projectiles: Projectile[]
@@ -260,17 +310,18 @@ class Player {
         this.sprite = sprites.create(assets.tile`hitbox`, SpriteKind.Player)
         this.sprite.setStayInScreen(true)
         this.sprite.setKind(0)
-        this.level = 1
+        this.level = 0
         this.projectiles = []
         this.slowDownVariable = 0
         this.skin = sprites.create(assets.tile`marisa`)
-        // self.skin.follow(self.sprite)
         this.skin.setPosition(this.sprite.x, this.sprite.y - 1)
         this.health = 3
         this.lastHit = -3000
+        // so you're not invincible at the start of the game
+        // self.spawnLasers()
+        this.Lasers = false
     }
     
-    // so you're not invincible at the start of the game
     public takeDamage() {
         this.health -= 1
         scene.cameraShake(2, 300)
@@ -334,6 +385,15 @@ class Player {
         sprites.destroy(this.l2)
     }
     
+    public shootLasers() {
+        this.projectiles.push(new marisaLaser())
+        this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x - 12, this.sprite.y)
+        this.projectiles[this.projectiles.length - 1].setAngle(180)
+        this.projectiles.push(new marisaLaser())
+        this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x + 12, this.sprite.y)
+        this.projectiles[this.projectiles.length - 1].setAngle(180)
+    }
+    
     public shoot() {
         if (this.slowDownVariable == 2) {
             if (this.level == 0) {
@@ -347,6 +407,7 @@ class Player {
                 this.projectiles.push(new playerProjectile())
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(180)
+                this.shootLasers()
                 this.slowDownVariable = 0
             }
             
@@ -386,22 +447,26 @@ class Game {
     gameOverActive: boolean
     continues: number
     lives: number
+    nextWave: number
     yes: boolean
     prevRunTime: number
     constructor() {
         this.hud = new HUD()
         this.player = new Player()
         this.projectiles = []
-        this.enemies = [new Enemy("test", this.player)]
+        this.enemies = []
         this.frameTimeList = []
         info.showScore(true)
         this.gameOverActive = false
         this.continues = 3
         this.lives = 3
+        this.nextWave = 0
     }
     
     public gameOver() {
         if (!this.gameOverActive) {
+            this.yes = false
+            this.player.sprite.setVelocity(0, 0)
             this.hud.gameOver(this.continues)
             this.gameOverActive = true
         } else if (controller.up.isPressed()) {
@@ -600,6 +665,11 @@ class Game {
     }
     
     public waves() {
+        if (game.runtime() > this.nextWave) {
+            this.enemies.push(new Enemy("test", this.player))
+            this.nextWave = game.runtime() + 1200
+        }
+        
         
     }
     
@@ -613,6 +683,7 @@ class Game {
         this.prevRunTime = 0
         this.collisionCheck()
         game.stats = true
+        this.hud.buildHud()
         game.onUpdate(function onUpdate() {
             // print("frametime: " + str(game.runtime() - self.prevRunTime))
             let startOfUpdate = control.micros()
@@ -626,6 +697,7 @@ class Game {
                 }
                 
                 this.enemyActions()
+                this.waves()
             }
             
             if (this.player.health <= 0) {

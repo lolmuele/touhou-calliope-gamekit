@@ -1,8 +1,14 @@
 class HUD:
+
     def __init__(self):
+        self.livesStars: List[Sprite] = []
+        self.bombsStars: List[Sprite] = []
+        self.powerBar: List[Sprite] = []
+        #self.hudImage = assets.image("hudBackground")
         self.background: Sprite = sprites.create(assets.image("hudBackground"), 999)
         self.background.z = 999
         self.background.set_position(140, 60)
+        
         self.stageBackground: Sprite = sprites.create(assets.image("stageBackground"), 999)
         self.stageBackground.z = -100
         self.stageBackground.set_position(60, 60)
@@ -16,13 +22,51 @@ class HUD:
         
         if yes:
             gameOverImage.print_center("> Yes <", y=70, color=5, font=image.font8)
-            gameOverImage.print_center("No", y=80, color=6, font=image.font8)
+            gameOverImage.print_center("No", y=80, color=2, font=image.font8)
 
         elif not yes:
-            gameOverImage.print_center("Yes", y=70, color=6, font=image.font8)
+            gameOverImage.print_center("Yes", y=70, color=2, font=image.font8)
             gameOverImage.print_center("> No <", y=80, color=5, font=image.font8)
 
         return gameOverImage
+    
+    def buildHud(self, highScore: int = 0, score: int = 0, lives: int = 3, bombs: int = 3, power: int = 100, graze: int = 0, point:int = 0):
+        hudImage = assets.image("hudBackground")
+        hudImage.print_center("HiSc", y = 10, color = 9, font = image.font5)
+        hudImage.print_center(str(highScore), y = 17, color = 10, font = image.font5)
+        hudImage.print_center("Score", y = 23, color = 9, font = image.font5)
+        hudImage.print_center(str(score), y = 29, color = 10, font = image.font5)
+
+        hudImage.print_center("Lives", y = 35, color = 9, font = image.font5)
+        for i in range(lives):
+            star = sprites.create(assets.image("livesStar"))
+            star.set_position(131 + i * 9, 46)
+            star.z = 1000
+            self.livesStars.append(star)
+
+        hudImage.print_center("Bombs", y = 53, color = 9, font = image.font5)
+        for i in range(bombs):
+            star = sprites.create(assets.image("bombsStar"))
+            star.set_position(131 + i * 9, 64)
+            star.z = 1000
+            self.bombsStars.append(star)
+            
+        hudImage.print_center("Power", y = 70, color = 9, font = image.font5)
+        
+        # for i in range((128 // power if power != 0 else 0) * 28):
+        #     barPart = sprites.create(assets.image("barPart"))
+        #     barPart.set_position(127 + i, 81)
+        #     barPart.z = 999
+        #     self.powerBar.append(barPart)
+
+        hudImage.fill_rect(127, 81, 100, 8, 9)
+
+        hudImage.print_center(str(power if power < 128 else "max") + "  ", y = 79, color = 10, font = image.font5)
+
+        
+
+
+        self.background.set_image(hudImage)
 
     def gameOver(self, continues):
         gameOverImage = self.buildGameOver(continues, False)
@@ -109,11 +153,18 @@ class playerProjectile(Projectile):
         self.sprite = sprites.create(assets.image("marisaShotImage2"), 2)
         #self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
 
+class marisaLaser(Projectile):
+    def __init__(self):
+        super().__init__(spriteName = "marisaLaser", maxSpeed = 250, spriteKind = 2)
+        #self.sprite = sprites.create(assets.tile("marisaShot"), 2)
+        self.sprite = sprites.create(assets.image("marisaLaser"), 2)
+        #self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
+
 class redCircleProjectile(Projectile):
     def __init__(self):
             super().__init__(spriteName = "redBall", maxSpeed = 30, spriteKind = 2)
             self.sprite = sprites.create(assets.tile("redBall"), 3)
-            self.sprite.set_scale(0.8, ScaleAnchor.MIDDLE)
+            #self.sprite.set_scale(0.8, ScaleAnchor.MIDDLE)
 
 
 class Enemy:
@@ -218,14 +269,15 @@ class Player:
         self.sprite = sprites.create(assets.tile("""hitbox"""), SpriteKind.player)
         self.sprite.set_stay_in_screen(True)
         self.sprite.set_kind(0)
-        self.level = 1
+        self.level = 0
         self.projectiles = []
         self.slowDownVariable = 0
         self.skin = sprites.create(assets.tile("""marisa"""))
-        #self.skin.follow(self.sprite)
         self.skin.set_position(self.sprite.x , self.sprite.y - 1)
         self.health = 3
         self.lastHit = -3000 #so you're not invincible at the start of the game
+        #self.spawnLasers()
+        self.Lasers = False
         
     
     
@@ -290,6 +342,14 @@ class Player:
         sprites.destroy(self.l1)
         sprites.destroy(self.l2)
 
+    def shootLasers(self):
+        self.projectiles.append(marisaLaser())
+        self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x - 12, self.sprite.y)
+        self.projectiles[len(self.projectiles)-1].setAngle(180)
+        self.projectiles.append(marisaLaser())
+        self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x + 12, self.sprite.y)
+        self.projectiles[len(self.projectiles)-1].setAngle(180)
+
     def shoot(self):
         if self.slowDownVariable == 2:
 
@@ -303,6 +363,7 @@ class Player:
                 self.projectiles.append(playerProjectile())
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(180)
+                self.shootLasers()
                 self.slowDownVariable = 0
 
             if self.level == 2:
@@ -330,16 +391,19 @@ class Game:
         self.hud = HUD()
         self.player = Player()
         self.projectiles: List[Projectile] = []
-        self.enemies: List[Enemy] = [Enemy("test", self.player)]
+        self.enemies: List[Enemy] = []
         self.frameTimeList = []
         info.show_score(True)
         self.gameOverActive = False
         self.continues = 3
         self.lives = 3
+        self.nextWave = 0
 
     def gameOver(self):
 
         if not self.gameOverActive:
+            self.yes = False
+            self.player.sprite.set_velocity(0, 0)
             self.hud.gameOver(self.continues)
             self.gameOverActive = True
 
@@ -501,6 +565,10 @@ class Game:
                 i += 1
 
     def waves(self):
+        
+        if game.runtime() > self.nextWave:
+            self.enemies.append(Enemy("test", self.player))
+            self.nextWave = game.runtime() + 1200
         pass
 
     def enemyActions(self):
@@ -512,6 +580,7 @@ class Game:
         self.prevRunTime = 0
         self.collisionCheck()
         game.stats = True
+        self.hud.buildHud()
         def onUpdate():
             #print("frametime: " + str(game.runtime() - self.prevRunTime))
             startOfUpdate = control.micros()
@@ -522,6 +591,7 @@ class Game:
                 self.player.shoot()
                 if self.player.sprite.x > 115: self.player.sprite.set_position(115, self.player.sprite.y), self.player.skin.set_position(115, self.player.sprite.y)
                 self.enemyActions()
+                self.waves()
             if self.player.health <= 0: self.gameOver()
             self.frametimes(startOfUpdate, control.micros())
 
