@@ -549,6 +549,22 @@ cccccccccccccccccccccccccccccccccccccccc
 . . . . . . . . . . . . . . . . 
 . . . . . . . . . . . . . . . . 
 `;
+            case "image7":
+            case "hitboxImage":return img`
+2 2 
+2 2 
+`;
+            case "image8":
+            case "miniHakkero":return img`
+. . 1 1 1 1 . . 
+. 1 1 f f 1 1 . 
+1 1 f f f f 1 1 
+1 f f 1 1 f f 1 
+1 f f 1 1 f f 1 
+1 1 f f f f 1 1 
+. 1 1 f f 1 1 . 
+. . 1 1 1 1 . . 
+`;
         }
         return null;
     })

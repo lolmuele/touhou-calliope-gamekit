@@ -29,6 +29,16 @@
         "mimeType": "image/x-mkcd-f4",
         "displayName": "marisaShotImage2"
     },
+    "image7": {
+        "data": "hwQCAAIAAAAiAAAAIgAAAA==",
+        "mimeType": "image/x-mkcd-f4",
+        "displayName": "hitboxImage"
+    },
+    "image8": {
+        "data": "hwQIAAgAAAAAEREAEPEfARH//xHxH/Ef8R/xHxH//xEQ8R8BABERAA==",
+        "mimeType": "image/x-mkcd-f4",
+        "displayName": "miniHakkero"
+    },
     "*": {
         "mimeType": "image/x-mkcd-f4",
         "dataEncoding": "base64",

@@ -218,7 +218,7 @@ class Player:
         self.sprite = sprites.create(assets.tile("""hitbox"""), SpriteKind.player)
         self.sprite.set_stay_in_screen(True)
         self.sprite.set_kind(0)
-        self.level = 0
+        self.level = 1
         self.projectiles = []
         self.slowDownVariable = 0
         self.skin = sprites.create(assets.tile("""marisa"""))
@@ -226,6 +226,7 @@ class Player:
         self.skin.set_position(self.sprite.x , self.sprite.y - 1)
         self.health = 3
         self.lastHit = -3000 #so you're not invincible at the start of the game
+        
     
     
     def takeDamage(self):
@@ -272,6 +273,22 @@ class Player:
 
         self.sprite.set_velocity(xVel, yVel)
         self.skin.set_position(self.sprite.x, self.sprite.y)
+        if self.Lasers:
+            self.l1.set_position(self.sprite.x - 12, self.sprite.y)
+            self.l2.set_position(self.sprite.x + 12, self.sprite.y)
+
+    def spawnLasers(self):
+
+        self.Lasers = True
+        self.l1 = sprites.create(assets.image("""miniHakkero"""))
+        self.l2 = sprites.create(assets.image("""miniHakkero"""))
+        self.l1.set_position(self.sprite.x - 12, self.sprite.y)
+        self.l2.set_position(self.sprite.x + 12, self.sprite.y)
+
+    def killLasers(self):
+        self.Lasers = False
+        sprites.destroy(self.l1)
+        sprites.destroy(self.l2)
 
     def shoot(self):
         if self.slowDownVariable == 2:
@@ -286,6 +303,18 @@ class Player:
                 self.projectiles.append(playerProjectile())
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(180)
+                self.slowDownVariable = 0
+
+            if self.level == 2:
+                self.projectiles.append(playerProjectile())
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(185)
+                self.projectiles.append(playerProjectile())
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(180)
+                self.projectiles.append(playerProjectile())
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(175)
                 self.slowDownVariable = 0
         else:
             self.slowDownVariable += 1

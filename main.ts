@@ -253,11 +253,14 @@ class Player {
     skin: Sprite
     health: number
     lastHit: number
+    Lasers: boolean
+    l1: Sprite
+    l2: Sprite
     constructor() {
         this.sprite = sprites.create(assets.tile`hitbox`, SpriteKind.Player)
         this.sprite.setStayInScreen(true)
         this.sprite.setKind(0)
-        this.level = 0
+        this.level = 1
         this.projectiles = []
         this.slowDownVariable = 0
         this.skin = sprites.create(assets.tile`marisa`)
@@ -310,6 +313,25 @@ class Player {
         
         this.sprite.setVelocity(xVel, yVel)
         this.skin.setPosition(this.sprite.x, this.sprite.y)
+        if (this.Lasers) {
+            this.l1.setPosition(this.sprite.x - 12, this.sprite.y)
+            this.l2.setPosition(this.sprite.x + 12, this.sprite.y)
+        }
+        
+    }
+    
+    public spawnLasers() {
+        this.Lasers = true
+        this.l1 = sprites.create(assets.image`miniHakkero`)
+        this.l2 = sprites.create(assets.image`miniHakkero`)
+        this.l1.setPosition(this.sprite.x - 12, this.sprite.y)
+        this.l2.setPosition(this.sprite.x + 12, this.sprite.y)
+    }
+    
+    public killLasers() {
+        this.Lasers = false
+        sprites.destroy(this.l1)
+        sprites.destroy(this.l2)
     }
     
     public shoot() {
@@ -325,6 +347,19 @@ class Player {
                 this.projectiles.push(new playerProjectile())
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(180)
+                this.slowDownVariable = 0
+            }
+            
+            if (this.level == 2) {
+                this.projectiles.push(new playerProjectile())
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(185)
+                this.projectiles.push(new playerProjectile())
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(180)
+                this.projectiles.push(new playerProjectile())
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(175)
                 this.slowDownVariable = 0
             }
             
