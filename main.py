@@ -8,9 +8,10 @@ class HUD:
         self.background.z = 999
         self.background.set_position(140, 60)
         
-        self.stageBackground: Sprite = sprites.create(assets.image("stageBackground"), 999)
-        self.stageBackground.z = -100
-        self.stageBackground.set_position(60, 60)
+        scene.set_background_color(6)
+        # self.stageBackground: Sprite = sprites.create(assets.image("stageBackground"), 999)
+        # self.stageBackground.z = -100
+        # self.stageBackground.set_position(60, 60)
         pass
 
     def buildGameOver(self, continues:int, yes:bool):
@@ -143,8 +144,7 @@ class playerProjectile(Projectile):
 class redCircleProjectile(Projectile):
     def __init__(self):
             super().__init__(spriteName = "redBall", maxSpeed = 30, spriteKind = 2)
-            self.sprite = sprites.create(assets.tile("redBall"), 3)
-            #self.sprite.set_scale(0.8, ScaleAnchor.MIDDLE)
+            self.sprite = sprites.create(assets.image("redBall"), 3)
 
 
 class Enemy:
@@ -248,7 +248,7 @@ class Enemy:
 
 class Player:
     def __init__(self):
-        self.sprite = sprites.create(assets.tile("""hitbox"""), SpriteKind.player)
+        self.sprite = sprites.create(assets.image("""hitboxImage"""), SpriteKind.player)
         self.sprite.set_stay_in_screen(True)
         self.sprite.set_kind(0)
         self.tier = 5
@@ -297,10 +297,15 @@ class Player:
         if controller.right.is_pressed():
             xVel += 80
 
-        if controller.B.is_pressed():
+        if controller.B.is_pressed() and self.Lasers:
             xVel = int(xVel / 2)
             yVel = int(yVel / 2)
             self.sprite.z = 10
+
+            self.l1.set_position(self.sprite.x - 5, self.sprite.y - 10)
+            self.l2.set_position(self.sprite.x + 5, self.sprite.y - 10)
+            self.l1Laser.set_position(self.sprite.x - 5, self.sprite.y -70 )
+            self.l2Laser.set_position(self.sprite.x + 5, self.sprite.y -70 )
         
         else:
             self.sprite.z = 0
@@ -308,7 +313,7 @@ class Player:
 
         self.sprite.set_velocity(xVel, yVel)
         self.skin.set_position(self.sprite.x, self.sprite.y)
-        if self.Lasers:
+        if self.Lasers and not controller.B.is_pressed():
             self.l1.set_position(self.sprite.x - 12, self.sprite.y)
             self.l2.set_position(self.sprite.x + 12, self.sprite.y)
             self.l1Laser.set_position(self.sprite.x - 12, self.sprite.y -60 )
@@ -419,7 +424,6 @@ class Player:
     def bomb(self):
         if self.bombs > 0 and game.runtime() - self.bombStart > 6100:
             self.bombStart = game.runtime()
-            print("bomb")
             self.bombs -= 1
             
         pass
@@ -432,7 +436,6 @@ class Game:
         self.player = Player()
         self.projectiles: List[Projectile] = []
         self.enemies: List[Enemy] = []
-        self.starItems: List[Sprite] = []
         self.frameTimeList = []
         info.show_score(True)
         self.gameOverActive = False
@@ -480,10 +483,6 @@ class Game:
                 self.gameOverActive = False
                 self.redrawHud()
 
-    def collisionHandler(self):
-        #print("collided!")
-        pass
-
     def collisionCheck(self):
         #spritekinds:
         #0 = player
@@ -494,11 +493,6 @@ class Game:
         #5 = playerLaser
         #6 = item
         #999 = hud
-
-        def testOverlap():
-            self.collisionHandler()
-
-        sprites.on_overlap(0, 1, testOverlap)
 
         def enemyDamaged(enemySprite: Sprite, projSprite: Sprite):
             #print("in handler")
@@ -574,7 +568,7 @@ class Game:
             for i in range(len(gameObj.enemies)):
                 if gameObj.enemies[i].sprite == enemySprite:
                     gameObj.enemies[i].takeDamage((sprites.read_data_number(laserSprite, "damage")) // 16.6 * 40) #last measured frametime on the calliope was 40ms
-                    print("arghhh")
+
 
 
         sprites.on_overlap(4, 5, enemyHitByLaser)
@@ -593,19 +587,6 @@ class Game:
             self.frameTimeList = []
 
 
-    
-    def projectileTest(self):
-        global i
-
-        if i % 5 == 0:
-            self.projectiles.append(Projectile(spriteName = "projectile"))
-            #self.projectiles.homeTo(self.player.sprite.x, self.player.sprite.y)
-            for g in range(len(self.projectiles)):
-                curO: Projectile = self.projectiles[g]
-                self.projectiles[len(self.projectiles)-1].setAngle(i)
-                if i >= 360: i = 0
-
-        i = i+1
 
     
 
@@ -668,7 +649,7 @@ class Game:
                         sprites.set_data_number(starItem, "type", 0)
                         starItem.set_position(cur2.sprite.x, cur2.sprite.y)
                         starItem.follow(self.player.sprite, speed = 200)
-                        self.starItems.append(starItem)
+                        
                         
                     sprites.destroy(cur2.sprite)
                     g.projectiles.remove_at(i)
@@ -694,14 +675,13 @@ class Game:
             #print("frametime: " + str(game.runtime() - self.prevRunTime))
             startOfUpdate = control.micros()
             if not self.gameOverActive:
-                #self.projectileTest()
                 self.player.movementController()
                 self.projectileDestructor()
                 self.player.shoot()
                 if self.player.sprite.x > 115: self.player.sprite.set_position(115, self.player.sprite.y), self.player.skin.set_position(115, self.player.sprite.y)
                 self.enemyActions()
                 self.waves()
-                if controller.A.is_pressed() and not self.blockBomb: self.player.bomb(); self.bombActive(first = True); self.redrawHud()
+                if controller.A.is_pressed() and not self.blockBomb and self.player.bombs > 0: self.player.bomb(); self.bombActive(first = True); self.redrawHud()
                 elif self.blockBomb and not controller.A.is_pressed(): self.blockBomb = False
                 if game.runtime() - self.player.bombStart <= 6000: self.bombActive()
             if self.player.health <= 0: self.gameOver()

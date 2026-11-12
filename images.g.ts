@@ -300,129 +300,6 @@ cccccccccccccccccccccccccccccccccccccccc
 . 1 1 f f 1 1 . 
 . . 1 1 1 1 . . 
 `;
-            case "image9":
-            case "marisaLaser":return img`
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-fcc11ccf
-`;
             case "image2":
             case "stageBackground":return img`
 666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666
@@ -567,17 +444,6 @@ fcc11ccf
 . . 7 7 7 7 . . 
 . 7 7 . . 7 7 . 
 . 7 7 . . 7 7 . 
-`;
-            case "image12":
-            case "barPart":return img`
-9 
-9 
-9 
-9 
-9 
-9 
-9 
-9 
 `;
             case "image4":
             case "masterSpark":return img`
@@ -740,6 +606,140 @@ fcc11ccf
 4 2 1 1 2 2 
 4 2 1 2 2 2 
 4 4 4 4 4 4 
+`;
+            case "image9":
+            case "marisaLaser":return img`
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11cf
+fc11ff
+`;
+            case "image12":
+            case "redBall":return img`
+. . . 2 2 . . . 
+. 2 2 . . 2 2 . 
+. 2 . 2 2 . 2 . 
+2 . 2 2 2 2 . 2 
+2 . 2 2 2 2 . 2 
+. 2 . 2 2 . 2 . 
+. 2 2 . . 2 2 . 
+. . . 2 2 . . . 
 `;
         }
         return null;

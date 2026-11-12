@@ -1,7 +1,6 @@
 class HUD {
     hudImage: Image
     background: Sprite
-    stageBackground: Sprite
     gameOverSprite: Sprite
     constructor() {
         this.hudImage = assets.image`hudBackground`
@@ -9,9 +8,10 @@ class HUD {
         this.background = sprites.create(assets.image`hudBackground`, 999)
         this.background.z = 999
         this.background.setPosition(140, 60)
-        this.stageBackground = sprites.create(assets.image`stageBackground`, 999)
-        this.stageBackground.z = -100
-        this.stageBackground.setPosition(60, 60)
+        scene.setBackgroundColor(6)
+        //  self.stageBackground: Sprite = sprites.create(assets.image("stageBackground"), 999)
+        //  self.stageBackground.z = -100
+        //  self.stageBackground.set_position(60, 60)
         
     }
     
@@ -150,12 +150,11 @@ class playerProjectile extends Projectile {
 class redCircleProjectile extends Projectile {
     constructor() {
         super("redBall", 2, 0, 0, 30)
-        this.sprite = sprites.create(assets.tile`redBall`, 3)
+        this.sprite = sprites.create(assets.image`redBall`, 3)
     }
     
 }
 
-// self.sprite.set_scale(0.8, ScaleAnchor.MIDDLE)
 class Enemy {
     sprite: Sprite
     projectiles: Projectile[]
@@ -292,7 +291,7 @@ class Player {
     l1Laser: Sprite
     l2Laser: Sprite
     constructor() {
-        this.sprite = sprites.create(assets.tile`hitbox`, SpriteKind.Player)
+        this.sprite = sprites.create(assets.image`hitboxImage`, SpriteKind.Player)
         this.sprite.setStayInScreen(true)
         this.sprite.setKind(0)
         this.tier = 5
@@ -339,17 +338,21 @@ class Player {
             xVel += 80
         }
         
-        if (controller.B.isPressed()) {
+        if (controller.B.isPressed() && this.Lasers) {
             xVel = Math.trunc(xVel / 2)
             yVel = Math.trunc(yVel / 2)
             this.sprite.z = 10
+            this.l1.setPosition(this.sprite.x - 5, this.sprite.y - 10)
+            this.l2.setPosition(this.sprite.x + 5, this.sprite.y - 10)
+            this.l1Laser.setPosition(this.sprite.x - 5, this.sprite.y - 70)
+            this.l2Laser.setPosition(this.sprite.x + 5, this.sprite.y - 70)
         } else {
             this.sprite.z = 0
         }
         
         this.sprite.setVelocity(xVel, yVel)
         this.skin.setPosition(this.sprite.x, this.sprite.y)
-        if (this.Lasers) {
+        if (this.Lasers && !controller.B.isPressed()) {
             this.l1.setPosition(this.sprite.x - 12, this.sprite.y)
             this.l2.setPosition(this.sprite.x + 12, this.sprite.y)
             this.l1Laser.setPosition(this.sprite.x - 12, this.sprite.y - 60)
@@ -467,7 +470,6 @@ class Player {
     public bomb() {
         if (this.bombs > 0 && game.runtime() - this.bombStart > 6100) {
             this.bombStart = game.runtime()
-            console.log("bomb")
             this.bombs -= 1
         }
         
@@ -482,7 +484,6 @@ class Game {
     player: Player
     projectiles: Projectile[]
     enemies: Enemy[]
-    starItems: Sprite[]
     frameTimeList: number[]
     gameOverActive: boolean
     continues: number
@@ -499,7 +500,6 @@ class Game {
         this.player = new Player()
         this.projectiles = []
         this.enemies = []
-        this.starItems = []
         this.frameTimeList = []
         info.showScore(true)
         this.gameOverActive = false
@@ -543,11 +543,6 @@ class Game {
         
     }
     
-    public collisionHandler() {
-        // print("collided!")
-        
-    }
-    
     public collisionCheck() {
         // spritekinds:
         // 0 = player
@@ -558,9 +553,6 @@ class Game {
         // 5 = playerLaser
         // 6 = item
         // 999 = hud
-        sprites.onOverlap(0, 1, function testOverlap() {
-            this.collisionHandler()
-        })
         sprites.onOverlap(4, 2, function enemyDamaged(enemySprite: Sprite, projSprite: Sprite) {
             let i: number;
             // print("in handler")
@@ -634,13 +626,12 @@ class Game {
             sprites.destroy(itemSprite)
             
         })
+        // last measured frametime on the calliope was 40ms
         sprites.onOverlap(4, 5, function enemyHitByLaser(enemySprite: Sprite, laserSprite: Sprite) {
             let hitProjectile : Projectile = null
             for (let i = 0; i < gameObj.enemies.length; i++) {
                 if (gameObj.enemies[i].sprite == enemySprite) {
                     gameObj.enemies[i].takeDamage(Math.idiv(sprites.readDataNumber(laserSprite, "damage"), 16.6) * 40)
-                    // last measured frametime on the calliope was 40ms
-                    console.log("arghhh")
                 }
                 
             }
@@ -662,25 +653,6 @@ class Game {
             this.frameTimeList = []
         }
         
-    }
-    
-    public projectileTest() {
-        let curO: Projectile;
-        
-        if (i % 5 == 0) {
-            this.projectiles.push(new Projectile("projectile"))
-            // self.projectiles.homeTo(self.player.sprite.x, self.player.sprite.y)
-            for (let g = 0; g < this.projectiles.length; g++) {
-                curO = this.projectiles[g]
-                this.projectiles[this.projectiles.length - 1].setAngle(i)
-                if (i >= 360) {
-                    i = 0
-                }
-                
-            }
-        }
-        
-        i = i + 1
     }
     
     public projectileDestructor() {
@@ -770,7 +742,6 @@ class Game {
                         sprites.setDataNumber(starItem, "type", 0)
                         starItem.setPosition(cur2.sprite.x, cur2.sprite.y)
                         starItem.follow(this.player.sprite, 200)
-                        this.starItems.push(starItem)
                     }
                     
                     sprites.destroy(cur2.sprite)
@@ -805,7 +776,6 @@ class Game {
             // print("frametime: " + str(game.runtime() - self.prevRunTime))
             let startOfUpdate = control.micros()
             if (!this.gameOverActive) {
-                // self.projectileTest()
                 this.player.movementController()
                 this.projectileDestructor()
                 this.player.shoot()
@@ -815,7 +785,7 @@ class Game {
                 
                 this.enemyActions()
                 this.waves()
-                if (controller.A.isPressed() && !this.blockBomb) {
+                if (controller.A.isPressed() && !this.blockBomb && this.player.bombs > 0) {
                     this.player.bomb()
                     this.bombActive(true)
                     this.redrawHud()
