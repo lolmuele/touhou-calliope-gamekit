@@ -142,6 +142,7 @@ class playerProjectile extends Projectile {
         this.damage = damage
         this.sprite = sprites.create(assets.image`marisaShotImage2`, 2)
         sprites.setDataNumber(this.sprite, "damage", this.damage)
+        this.sprite.z = -10
     }
     
 }
@@ -168,9 +169,10 @@ class Enemy {
     xVel: number
     yVel: number
     maxSpeed: number
-    constructor(spriteName: string, player: Player, health: number = 5) {
+    constructor(spriteName: string, player: Player, health: number = 380) {
         if (spriteName == "test") {
             this.sprite = sprites.create(assets.tile`marisa`, 4)
+            this.sprite.z = 10
         }
         
         this.projectiles = []
@@ -200,8 +202,8 @@ class Enemy {
         this.projectiles[this.projectiles.length - 1].homeTo(this.player.sprite.x, this.player.sprite.y)
     }
     
-    public takeDamage() {
-        this.health -= 1
+    public takeDamage(damage: number = 1) {
+        this.health -= damage
         if (this.health <= 0) {
             this.dead = true
         }
@@ -293,7 +295,7 @@ class Player {
         this.sprite = sprites.create(assets.tile`hitbox`, SpriteKind.Player)
         this.sprite.setStayInScreen(true)
         this.sprite.setKind(0)
-        this.tier = 0
+        this.tier = 5
         this.projectiles = []
         this.slowDownVariable = 0
         this.skin = sprites.create(assets.tile`marisa`)
@@ -368,6 +370,10 @@ class Player {
         this.l2Laser = sprites.create(assets.image`marisaLaser`, 5)
         this.l2Laser.setPosition(this.sprite.x + 12, this.sprite.y - 60)
         sprites.setDataNumber(this.l2Laser, "damage", damage)
+        this.l1.z = -10
+        this.l2.z = -10
+        this.l1Laser.z = -10
+        this.l2Laser.z = -10
     }
     
     public killLasers() {
@@ -384,10 +390,7 @@ class Player {
                 this.projectiles.push(new playerProjectile(48))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(180)
-                this.slowDownVariable = 0
-            }
-            
-            if (this.tier == 1) {
+            } else if (this.tier == 1) {
                 this.projectiles.push(new playerProjectile(32))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(180)
@@ -395,20 +398,65 @@ class Player {
                     this.spawnLasers(3)
                 }
                 
-                this.slowDownVariable = 0
-            }
-            
-            if (this.tier == 2) {
-                this.projectiles.push(new playerProjectile())
+            } else if (this.tier == 2) {
+                this.projectiles.push(new playerProjectile(22))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(183)
+                this.projectiles.push(new playerProjectile(22))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(177)
+                if (!this.Lasers) {
+                    this.spawnLasers(3)
+                }
+                
+            } else if (this.tier == 3) {
+                this.projectiles.push(new playerProjectile(15))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(185)
-                this.projectiles.push(new playerProjectile())
+                this.projectiles.push(new playerProjectile(20))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(180)
-                this.projectiles.push(new playerProjectile())
+                this.projectiles.push(new playerProjectile(15))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(175)
-                this.slowDownVariable = 0
+                if (!this.Lasers) {
+                    this.spawnLasers(4)
+                }
+                
+            } else if (this.tier == 4) {
+                this.projectiles.push(new playerProjectile(15))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(185)
+                this.projectiles.push(new playerProjectile(20))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(180)
+                this.projectiles.push(new playerProjectile(15))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(175)
+                if (!this.Lasers) {
+                    this.spawnLasers(5)
+                }
+                
+            } else if (this.tier == 5) {
+                this.projectiles.push(new playerProjectile(7))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(189)
+                this.projectiles.push(new playerProjectile(15))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(185)
+                this.projectiles.push(new playerProjectile(20))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(180)
+                this.projectiles.push(new playerProjectile(15))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(175)
+                this.projectiles.push(new playerProjectile(7))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(171)
+                if (!this.Lasers) {
+                    this.spawnLasers(6)
+                }
+                
             }
             
             this.lastShot = game.runtime()
@@ -539,7 +587,7 @@ class Game {
                 
             }
             if (hitEnemy != null) {
-                hitEnemy.takeDamage()
+                hitEnemy.takeDamage(sprites.readDataNumber(projSprite, "damage"))
             }
             
             if (hitProjectile != null) {
@@ -590,7 +638,8 @@ class Game {
             let hitProjectile : Projectile = null
             for (let i = 0; i < gameObj.enemies.length; i++) {
                 if (gameObj.enemies[i].sprite == enemySprite) {
-                    gameObj.enemies[i].takeDamage()
+                    gameObj.enemies[i].takeDamage(Math.idiv(sprites.readDataNumber(laserSprite, "damage"), 16.6) * 40)
+                    // last measured frametime on the calliope was 40ms
                     console.log("arghhh")
                 }
                 

@@ -136,6 +136,7 @@ class playerProjectile(Projectile):
         self.damage = damage
         self.sprite = sprites.create(assets.image("marisaShotImage2"), 2)
         sprites.set_data_number(self.sprite, "damage", self.damage)
+        self.sprite.z = -10
         
 
 
@@ -147,9 +148,10 @@ class redCircleProjectile(Projectile):
 
 
 class Enemy:
-    def __init__(self, spriteName: str, player: Player, health = 5):
+    def __init__(self, spriteName: str, player: Player, health = 380):
         if spriteName == "test":
             self.sprite = sprites.create(assets.tile("marisa"), 4)
+            self.sprite.z = 10
         self.projectiles: List[Projectile] = []
         self.health = health
         self.dead = False
@@ -163,6 +165,7 @@ class Enemy:
         self.waitTime = 0
         self.player: Player = player
         self.pointReachedTime = 0
+        
 
 
     def shoot(self):
@@ -177,8 +180,8 @@ class Enemy:
         self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y)
         self.projectiles[len(self.projectiles)-1].homeTo(self.player.sprite.x, self.player.sprite.y)
 
-    def takeDamage(self):
-        self.health -= 1
+    def takeDamage(self, damage = 1):
+        self.health -= damage
         if self.health <= 0:
             self.dead = True
 
@@ -248,7 +251,7 @@ class Player:
         self.sprite = sprites.create(assets.tile("""hitbox"""), SpriteKind.player)
         self.sprite.set_stay_in_screen(True)
         self.sprite.set_kind(0)
-        self.tier = 0
+        self.tier = 5
         self.projectiles = []
         self.slowDownVariable = 0
         self.skin = sprites.create(assets.tile("""marisa"""))
@@ -324,6 +327,10 @@ class Player:
         self.l2Laser = sprites.create(assets.image("marisaLaser"), 5)
         self.l2Laser.set_position(self.sprite.x + 12, self.sprite.y-60)
         sprites.set_data_number(self.l2Laser, "damage", damage)
+        self.l1.z = -10
+        self.l2.z = -10
+        self.l1Laser.z = -10
+        self.l2Laser.z = -10
 
     def killLasers(self):
         self.Lasers = False
@@ -342,27 +349,70 @@ class Player:
                 self.projectiles.append(playerProjectile(48))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(180)
-                self.slowDownVariable = 0
+                
 
-            if self.tier == 1:
+            elif self.tier == 1:
                 self.projectiles.append(playerProjectile(32))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(180)
                 if not self.Lasers:
                     self.spawnLasers(3)
-                self.slowDownVariable = 0
+                
 
-            if self.tier == 2:
-                self.projectiles.append(playerProjectile())
+            elif self.tier == 2:
+                self.projectiles.append(playerProjectile(22))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(183)
+                self.projectiles.append(playerProjectile(22))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(177)
+                if not self.Lasers:
+                    self.spawnLasers(3)
+
+            elif self.tier == 3:
+                self.projectiles.append(playerProjectile(15))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(185)
-                self.projectiles.append(playerProjectile())
+                self.projectiles.append(playerProjectile(20))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(180)
-                self.projectiles.append(playerProjectile())
+                self.projectiles.append(playerProjectile(15))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(175)
-                self.slowDownVariable = 0
+                if not self.Lasers:
+                    self.spawnLasers(4)
+
+            elif self.tier == 4:
+                self.projectiles.append(playerProjectile(15))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(185)
+                self.projectiles.append(playerProjectile(20))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(180)
+                self.projectiles.append(playerProjectile(15))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(175)
+                if not self.Lasers:
+                    self.spawnLasers(5)
+
+            elif self.tier == 5:
+                self.projectiles.append(playerProjectile(7))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(189)
+                self.projectiles.append(playerProjectile(15))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(185)
+                self.projectiles.append(playerProjectile(20))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(180)
+                self.projectiles.append(playerProjectile(15))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(175)
+                self.projectiles.append(playerProjectile(7))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(171)
+                if not self.Lasers:
+                    self.spawnLasers(6)
 
             self.lastShot = game.runtime()
 
@@ -472,7 +522,7 @@ class Game:
                     break
 
             if hitEnemy != None:
-                hitEnemy.takeDamage()
+                hitEnemy.takeDamage(sprites.read_data_number(projSprite, "damage"))
 
             if hitProjectile != None:
                 sprites.destroy(hitProjectile.sprite)
@@ -523,7 +573,7 @@ class Game:
 
             for i in range(len(gameObj.enemies)):
                 if gameObj.enemies[i].sprite == enemySprite:
-                    gameObj.enemies[i].takeDamage()
+                    gameObj.enemies[i].takeDamage((sprites.read_data_number(laserSprite, "damage")) // 16.6 * 40) #last measured frametime on the calliope was 40ms
                     print("arghhh")
 
 
