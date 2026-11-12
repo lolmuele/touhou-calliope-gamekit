@@ -145,16 +145,6 @@ class playerProjectile extends Projectile {
 }
 
 // self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
-class marisaLaser extends Projectile {
-    constructor() {
-        super("marisaLaser", 2, 0, 0, 250)
-        // self.sprite = sprites.create(assets.tile("marisaShot"), 2)
-        this.sprite = sprites.create(assets.image`marisaLaser`, 2)
-    }
-    
-}
-
-// self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
 class redCircleProjectile extends Projectile {
     constructor() {
         super("redBall", 2, 0, 0, 30)
@@ -295,11 +285,13 @@ class Player {
     bombStart: number
     l1: Sprite
     l2: Sprite
+    l1Laser: Sprite
+    l2Laser: Sprite
     constructor() {
         this.sprite = sprites.create(assets.tile`hitbox`, SpriteKind.Player)
         this.sprite.setStayInScreen(true)
         this.sprite.setKind(0)
-        this.level = 0
+        this.level = 1
         this.projectiles = []
         this.slowDownVariable = 0
         this.skin = sprites.create(assets.tile`marisa`)
@@ -355,6 +347,8 @@ class Player {
         if (this.Lasers) {
             this.l1.setPosition(this.sprite.x - 12, this.sprite.y)
             this.l2.setPosition(this.sprite.x + 12, this.sprite.y)
+            this.l1Laser.setPosition(this.sprite.x - 12, this.sprite.y - 60)
+            this.l2Laser.setPosition(this.sprite.x + 12, this.sprite.y - 60)
         }
         
     }
@@ -365,21 +359,18 @@ class Player {
         this.l2 = sprites.create(assets.image`miniHakkero`)
         this.l1.setPosition(this.sprite.x - 12, this.sprite.y)
         this.l2.setPosition(this.sprite.x + 12, this.sprite.y)
+        this.l1Laser = sprites.create(assets.image`marisaLaser`, 5)
+        this.l1Laser.setPosition(this.sprite.x - 12, this.sprite.y - 60)
+        this.l2Laser = sprites.create(assets.image`marisaLaser`, 5)
+        this.l2Laser.setPosition(this.sprite.x + 12, this.sprite.y - 60)
     }
     
     public killLasers() {
         this.Lasers = false
         sprites.destroy(this.l1)
         sprites.destroy(this.l2)
-    }
-    
-    public shootLasers() {
-        this.projectiles.push(new marisaLaser())
-        this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x - 12, this.sprite.y)
-        this.projectiles[this.projectiles.length - 1].setAngle(180)
-        this.projectiles.push(new marisaLaser())
-        this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x + 12, this.sprite.y)
-        this.projectiles[this.projectiles.length - 1].setAngle(180)
+        sprites.destroy(this.l1Laser)
+        sprites.destroy(this.l2Laser)
     }
     
     public shoot() {
@@ -392,10 +383,13 @@ class Player {
             }
             
             if (this.level == 1) {
-                this.projectiles.push(new playerProjectile())
-                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
-                this.projectiles[this.projectiles.length - 1].setAngle(180)
-                this.shootLasers()
+                //  self.projectiles.append(playerProjectile())
+                //  self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                //  self.projectiles[len(self.projectiles)-1].setAngle(180)
+                if (!this.Lasers) {
+                    this.spawnLasers()
+                }
+                
                 this.slowDownVariable = 0
             }
             
@@ -587,6 +581,16 @@ class Game {
             
             sprites.destroy(itemSprite)
             
+        })
+        sprites.onOverlap(4, 5, function enemyHitByLaser(enemySprite: Sprite, laserSprite: Sprite) {
+            let hitProjectile : Projectile = null
+            for (let i = 0; i < this.enemies; i++) {
+                if (this.enemies[i].sprite == enemySprite) {
+                    this.enemies[i].takeDamage()
+                    console.log("arghhh")
+                }
+                
+            }
         })
     }
     
