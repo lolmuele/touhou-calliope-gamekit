@@ -131,11 +131,12 @@ class Projectile:
 
 class playerProjectile(Projectile):
 
-    def __init__(self):
+    def __init__(self, damage: int = 1):
         super().__init__(spriteName = "marisaShot", maxSpeed = 250, spriteKind = 2)
-        #self.sprite = sprites.create(assets.tile("marisaShot"), 2)
+        self.damage = damage
         self.sprite = sprites.create(assets.image("marisaShotImage2"), 2)
-        #self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
+        sprites.set_data_number(self.sprite, "damage", self.damage)
+        
 
 
 class redCircleProjectile(Projectile):
@@ -247,7 +248,7 @@ class Player:
         self.sprite = sprites.create(assets.tile("""hitbox"""), SpriteKind.player)
         self.sprite.set_stay_in_screen(True)
         self.sprite.set_kind(0)
-        self.level = 1
+        self.tier = 0
         self.projectiles = []
         self.slowDownVariable = 0
         self.skin = sprites.create(assets.tile("""marisa"""))
@@ -259,6 +260,7 @@ class Player:
         #self.spawnLasers()
         self.Lasers = False
         self.bombStart = -10000
+        self.lastShot = 0
     
     
     def takeDamage(self):
@@ -309,7 +311,7 @@ class Player:
             self.l1Laser.set_position(self.sprite.x - 12, self.sprite.y -60 )
             self.l2Laser.set_position(self.sprite.x + 12, self.sprite.y -60 )
 
-    def spawnLasers(self):
+    def spawnLasers(self, damage = 3):
 
         self.Lasers = True
         self.l1 = sprites.create(assets.image("""miniHakkero"""))
@@ -318,8 +320,10 @@ class Player:
         self.l2.set_position(self.sprite.x + 12, self.sprite.y)
         self.l1Laser = sprites.create(assets.image("marisaLaser"), 5)
         self.l1Laser.set_position(self.sprite.x - 12, self.sprite.y-60)
+        sprites.set_data_number(self.l1Laser, "damage", damage)
         self.l2Laser = sprites.create(assets.image("marisaLaser"), 5)
         self.l2Laser.set_position(self.sprite.x + 12, self.sprite.y-60)
+        sprites.set_data_number(self.l2Laser, "damage", damage)
 
     def killLasers(self):
         self.Lasers = False
@@ -332,23 +336,23 @@ class Player:
 
 
     def shoot(self):
-        if self.slowDownVariable == 2:
+        if game.runtime() - self.lastShot >= 80:
 
-            if self.level == 0:
-                self.projectiles.append(playerProjectile())
+            if self.tier == 0:
+                self.projectiles.append(playerProjectile(48))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(180)
                 self.slowDownVariable = 0
 
-            if self.level == 1:
-                # self.projectiles.append(playerProjectile())
-                # self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
-                # self.projectiles[len(self.projectiles)-1].setAngle(180)
+            if self.tier == 1:
+                self.projectiles.append(playerProjectile(32))
+                self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
+                self.projectiles[len(self.projectiles)-1].setAngle(180)
                 if not self.Lasers:
-                    self.spawnLasers()
+                    self.spawnLasers(3)
                 self.slowDownVariable = 0
 
-            if self.level == 2:
+            if self.tier == 2:
                 self.projectiles.append(playerProjectile())
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(185)
@@ -359,8 +363,8 @@ class Player:
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(175)
                 self.slowDownVariable = 0
-        else:
-            self.slowDownVariable += 1
+
+            self.lastShot = game.runtime()
 
     def bomb(self):
         if self.bombs > 0 and game.runtime() - self.bombStart > 6100:
@@ -517,10 +521,10 @@ class Game:
         def enemyHitByLaser(enemySprite: Sprite, laserSprite: Sprite):
             hitProjectile: Projectile = None
 
-            for i in range(self.enemies):
-               if self.enemies[i].sprite == enemySprite:
-                self.enemies[i].takeDamage()
-                print("arghhh")
+            for i in range(len(gameObj.enemies)):
+                if gameObj.enemies[i].sprite == enemySprite:
+                    gameObj.enemies[i].takeDamage()
+                    print("arghhh")
 
 
         sprites.on_overlap(4, 5, enemyHitByLaser)

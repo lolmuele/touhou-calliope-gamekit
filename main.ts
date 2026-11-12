@@ -136,15 +136,16 @@ class Projectile {
 }
 
 class playerProjectile extends Projectile {
-    constructor() {
+    damage: number
+    constructor(damage: number = 1) {
         super("marisaShot", 2, 0, 0, 250)
-        // self.sprite = sprites.create(assets.tile("marisaShot"), 2)
+        this.damage = damage
         this.sprite = sprites.create(assets.image`marisaShotImage2`, 2)
+        sprites.setDataNumber(this.sprite, "damage", this.damage)
     }
     
 }
 
-// self.sprite.set_scale(1, ScaleAnchor.MIDDLE)
 class redCircleProjectile extends Projectile {
     constructor() {
         super("redBall", 2, 0, 0, 30)
@@ -273,7 +274,7 @@ class Enemy {
 
 class Player {
     sprite: Sprite
-    level: number
+    tier: number
     projectiles: Projectile[]
     slowDownVariable: number
     skin: Sprite
@@ -283,6 +284,7 @@ class Player {
     lastHit: number
     Lasers: boolean
     bombStart: number
+    lastShot: number
     l1: Sprite
     l2: Sprite
     l1Laser: Sprite
@@ -291,7 +293,7 @@ class Player {
         this.sprite = sprites.create(assets.tile`hitbox`, SpriteKind.Player)
         this.sprite.setStayInScreen(true)
         this.sprite.setKind(0)
-        this.level = 1
+        this.tier = 0
         this.projectiles = []
         this.slowDownVariable = 0
         this.skin = sprites.create(assets.tile`marisa`)
@@ -304,6 +306,7 @@ class Player {
         // self.spawnLasers()
         this.Lasers = false
         this.bombStart = -10000
+        this.lastShot = 0
     }
     
     public takeDamage() {
@@ -353,7 +356,7 @@ class Player {
         
     }
     
-    public spawnLasers() {
+    public spawnLasers(damage: number = 3) {
         this.Lasers = true
         this.l1 = sprites.create(assets.image`miniHakkero`)
         this.l2 = sprites.create(assets.image`miniHakkero`)
@@ -361,8 +364,10 @@ class Player {
         this.l2.setPosition(this.sprite.x + 12, this.sprite.y)
         this.l1Laser = sprites.create(assets.image`marisaLaser`, 5)
         this.l1Laser.setPosition(this.sprite.x - 12, this.sprite.y - 60)
+        sprites.setDataNumber(this.l1Laser, "damage", damage)
         this.l2Laser = sprites.create(assets.image`marisaLaser`, 5)
         this.l2Laser.setPosition(this.sprite.x + 12, this.sprite.y - 60)
+        sprites.setDataNumber(this.l2Laser, "damage", damage)
     }
     
     public killLasers() {
@@ -374,26 +379,26 @@ class Player {
     }
     
     public shoot() {
-        if (this.slowDownVariable == 2) {
-            if (this.level == 0) {
-                this.projectiles.push(new playerProjectile())
+        if (game.runtime() - this.lastShot >= 80) {
+            if (this.tier == 0) {
+                this.projectiles.push(new playerProjectile(48))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(180)
                 this.slowDownVariable = 0
             }
             
-            if (this.level == 1) {
-                //  self.projectiles.append(playerProjectile())
-                //  self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
-                //  self.projectiles[len(self.projectiles)-1].setAngle(180)
+            if (this.tier == 1) {
+                this.projectiles.push(new playerProjectile(32))
+                this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
+                this.projectiles[this.projectiles.length - 1].setAngle(180)
                 if (!this.Lasers) {
-                    this.spawnLasers()
+                    this.spawnLasers(3)
                 }
                 
                 this.slowDownVariable = 0
             }
             
-            if (this.level == 2) {
+            if (this.tier == 2) {
                 this.projectiles.push(new playerProjectile())
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(185)
@@ -406,8 +411,7 @@ class Player {
                 this.slowDownVariable = 0
             }
             
-        } else {
-            this.slowDownVariable += 1
+            this.lastShot = game.runtime()
         }
         
     }
@@ -584,9 +588,9 @@ class Game {
         })
         sprites.onOverlap(4, 5, function enemyHitByLaser(enemySprite: Sprite, laserSprite: Sprite) {
             let hitProjectile : Projectile = null
-            for (let i = 0; i < this.enemies; i++) {
-                if (this.enemies[i].sprite == enemySprite) {
-                    this.enemies[i].takeDamage()
+            for (let i = 0; i < gameObj.enemies.length; i++) {
+                if (gameObj.enemies[i].sprite == enemySprite) {
+                    gameObj.enemies[i].takeDamage()
                     console.log("arghhh")
                 }
                 
