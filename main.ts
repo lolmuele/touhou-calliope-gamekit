@@ -445,6 +445,7 @@ class Game {
     highScore: number
     score: number
     graze: number
+    blockBomb: boolean
     yes: boolean
     prevRunTime: number
     constructor() {
@@ -462,6 +463,7 @@ class Game {
         this.highScore = 0
         this.score = 0
         this.graze = 0
+        this.blockBomb = false
     }
     
     public redrawHud() {
@@ -471,6 +473,7 @@ class Game {
     public gameOver() {
         if (!this.gameOverActive) {
             this.yes = false
+            this.blockBomb = true
             this.player.sprite.setVelocity(0, 0)
             this.hud.gameOver(this.continues)
             this.gameOverActive = true
@@ -571,6 +574,18 @@ class Game {
             
         })
         sprites.onOverlap(0, 6, function itemCollected(playerSprite: Sprite, itemSprite: Sprite) {
+            // 0 = starItem
+            // 1 = powerItemSmall
+            // 2 = powerItemLarge
+            // 3 = pointItem
+            // 4 = extraLife
+            // 5 = extraBomb
+            let itemType = sprites.readDataNumber(itemSprite, "type")
+            if (itemType == 0) {
+                this.addScore(0, "starItem")
+            }
+            
+            sprites.destroy(itemSprite)
             
         })
     }
@@ -683,6 +698,7 @@ class Game {
             this.score += 5
         }
         
+        this.redrawHud()
     }
     
     public bombActive(first: boolean = false) {
@@ -694,6 +710,7 @@ class Game {
                     cur2 = g.projectiles[i]
                     if (first) {
                         starItem = sprites.create(assets.image`starItem`, 6)
+                        sprites.setDataNumber(starItem, "type", 0)
                         starItem.setPosition(cur2.sprite.x, cur2.sprite.y)
                         starItem.follow(this.player.sprite, 200)
                         this.starItems.push(starItem)
@@ -741,10 +758,12 @@ class Game {
                 
                 this.enemyActions()
                 this.waves()
-                if (controller.A.isPressed()) {
+                if (controller.A.isPressed() && !this.blockBomb) {
                     this.player.bomb()
                     this.bombActive(true)
                     this.redrawHud()
+                } else if (this.blockBomb && !controller.A.isPressed()) {
+                    this.blockBomb = false
                 }
                 
                 if (game.runtime() - this.player.bombStart <= 6000) {

@@ -390,6 +390,7 @@ class Game:
         self.highScore = 0
         self.score = 0
         self.graze = 0
+        self.blockBomb = False
 
     def redrawHud(self):
         self.hud.buildHud(highScore = self.highScore, score = self.score, lives = self.player.health, bombs = self.player.bombs, power = self.player.power, graze = self.graze)
@@ -398,6 +399,7 @@ class Game:
 
         if not self.gameOverActive:
             self.yes = False
+            self.blockBomb = True
             self.player.sprite.set_velocity(0, 0)
             self.hud.gameOver(self.continues)
             self.gameOverActive = True
@@ -495,6 +497,21 @@ class Game:
         sprites.on_overlap(0, 3, playerDamaged)
 
         def itemCollected(playerSprite: Sprite, itemSprite: Sprite):
+            #0 = starItem
+            #1 = powerItemSmall
+            #2 = powerItemLarge
+            #3 = pointItem
+            #4 = extraLife
+            #5 = extraBomb
+            itemType = sprites.read_data_number(itemSprite, "type")
+
+            if itemType == 0:
+                self.addScore(item = "starItem")
+
+
+
+
+            sprites.destroy(itemSprite)
             pass
         
         sprites.on_overlap(0, 6, itemCollected)
@@ -576,6 +593,7 @@ class Game:
         elif item == "starItem":
             self.score += 5
 
+        self.redrawHud()
 
 
     def bombActive(self, first: bool = False):
@@ -585,6 +603,7 @@ class Game:
                     cur2: Projectile = g.projectiles[i]
                     if first:
                         starItem = sprites.create(assets.image("starItem"), 6)
+                        sprites.set_data_number(starItem, "type", 0)
                         starItem.set_position(cur2.sprite.x, cur2.sprite.y)
                         starItem.follow(self.player.sprite, speed = 200)
                         self.starItems.append(starItem)
@@ -620,7 +639,8 @@ class Game:
                 if self.player.sprite.x > 115: self.player.sprite.set_position(115, self.player.sprite.y), self.player.skin.set_position(115, self.player.sprite.y)
                 self.enemyActions()
                 self.waves()
-                if controller.A.is_pressed(): self.player.bomb(); self.bombActive(first = True); self.redrawHud()
+                if controller.A.is_pressed() and not self.blockBomb: self.player.bomb(); self.bombActive(first = True); self.redrawHud()
+                elif self.blockBomb and not controller.A.is_pressed(): self.blockBomb = False
                 if game.runtime() - self.player.bombStart <= 6000: self.bombActive()
             if self.player.health <= 0: self.gameOver()
             self.frametimes(startOfUpdate, control.micros())
