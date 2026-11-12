@@ -507,8 +507,7 @@ class Game {
         // 3 = enemy projectile
         // 4 = enemy
         // 5 = playerLaser
-        // 6 = starItem
-        // 7 = powerItemSmall
+        // 6 = item
         // 999 = hud
         sprites.onOverlap(0, 1, function testOverlap() {
             this.collisionHandler()
@@ -569,6 +568,9 @@ class Game {
                 gameObj.player.takeDamage()
                 this.redrawHud()
             }
+            
+        })
+        sprites.onOverlap(0, 6, function itemCollected(playerSprite: Sprite, itemSprite: Sprite) {
             
         })
     }
@@ -688,12 +690,12 @@ class Game {
         let starItem: Sprite;
         if (this.enemies.length > 0) {
             for (let g of this.enemies) {
-                for (let i = 0; i < g.projectiles.length; i++) {
+                for (let i = g.projectiles.length - 1; i > -1; i += -1) {
                     cur2 = g.projectiles[i]
                     if (first) {
                         starItem = sprites.create(assets.image`starItem`, 6)
                         starItem.setPosition(cur2.sprite.x, cur2.sprite.y)
-                        starItem.follow(this.player.sprite)
+                        starItem.follow(this.player.sprite, 200)
                         this.starItems.push(starItem)
                     }
                     

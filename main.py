@@ -438,8 +438,7 @@ class Game:
         #3 = enemy projectile
         #4 = enemy
         #5 = playerLaser
-        #6 = starItem
-        #7 = powerItemSmall
+        #6 = item
         #999 = hud
 
         def testOverlap():
@@ -494,6 +493,12 @@ class Game:
                 self.redrawHud()
 
         sprites.on_overlap(0, 3, playerDamaged)
+
+        def itemCollected(playerSprite: Sprite, itemSprite: Sprite):
+            pass
+        
+        sprites.on_overlap(0, 6, itemCollected)
+
 
     def frametimes(self, t1, t2):
         self.frameTimeList.append((t2 - t1))
@@ -576,22 +581,19 @@ class Game:
     def bombActive(self, first: bool = False):
         if len(self.enemies) > 0:
             for g in self.enemies:
-                for i in range(len(g.projectiles)):
+                for i in range(len(g.projectiles) -1, -1, -1):
                     cur2: Projectile = g.projectiles[i]
                     if first:
                         starItem = sprites.create(assets.image("starItem"), 6)
                         starItem.set_position(cur2.sprite.x, cur2.sprite.y)
-                        starItem.follow(self.player.sprite)
+                        starItem.follow(self.player.sprite, speed = 200)
                         self.starItems.append(starItem)
                         
                     sprites.destroy(cur2.sprite)
                     g.projectiles.remove_at(i)
 
 
-
-
     def waves(self):
-        
         if game.runtime() > self.nextWave:
             self.enemies.append(Enemy("test", self.player))
             self.nextWave = game.runtime() + 1200
