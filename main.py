@@ -264,7 +264,7 @@ class Player:
         self.lastHit = -3000 #so you're not invincible at the start of the game
         #self.spawnLasers()
         self.Lasers = False
-        
+        self.bombStart = -10000
     
     
     def takeDamage(self):
@@ -306,8 +306,6 @@ class Player:
         else:
             self.sprite.z = 0
 
-        if controller.A.is_pressed():
-            self.bomb()
 
         self.sprite.set_velocity(xVel, yVel)
         self.skin.set_position(self.sprite.x, self.sprite.y)
@@ -367,7 +365,11 @@ class Player:
             self.slowDownVariable += 1
 
     def bomb(self):
-        print("bomb")
+        if self.bombs > 0 and game.runtime() - self.bombStart > 6100:
+            self.bombStart = game.runtime()
+            print("bomb")
+            self.bombs -= 1
+            
         pass
 
 i = 0
@@ -378,6 +380,7 @@ class Game:
         self.player = Player()
         self.projectiles: List[Projectile] = []
         self.enemies: List[Enemy] = []
+        self.starItems: List[Sprite] = []
         self.frameTimeList = []
         info.show_score(True)
         self.gameOverActive = False
@@ -387,6 +390,9 @@ class Game:
         self.highScore = 0
         self.score = 0
         self.graze = 0
+
+    def redrawHud(self):
+        self.hud.buildHud(highScore = self.highScore, score = self.score, lives = self.player.health, bombs = self.player.bombs, power = self.player.power, graze = self.graze)
 
     def gameOver(self):
 
@@ -418,7 +424,7 @@ class Game:
                 self.player.lastHit = game.runtime() 
                 sprites.destroy(self.hud.gameOverSprite)
                 self.gameOverActive = False
-                
+                self.redrawHud()
 
     def collisionHandler(self):
         #print("collided!")
@@ -431,6 +437,9 @@ class Game:
         #2 = player projectile
         #3 = enemy projectile
         #4 = enemy
+        #5 = playerLaser
+        #6 = starItem
+        #7 = powerItemSmall
         #999 = hud
 
         def testOverlap():
@@ -471,7 +480,7 @@ class Game:
         def playerDamaged(playerSprite: Sprite, projSprite: Sprite):
             hitProjectile: Projectile = None
 
-            if game.runtime() - self.player.lastHit >= 3000: #invulnerability handling
+            if game.runtime() - self.player.lastHit >= 3000 and game.runtime() - self.player.bombStart >= 6200: #invulnerability handling
                 for enemy in gameObj.enemies:     
                     for i in range(len(enemy.projectiles)):
                         if enemy.projectiles[i].sprite == projSprite:
@@ -482,6 +491,7 @@ class Game:
                             break
 
                 gameObj.player.takeDamage()
+                self.redrawHud()
 
         sprites.on_overlap(0, 3, playerDamaged)
 
@@ -512,6 +522,8 @@ class Game:
                 if i >= 360: i = 0
 
         i = i+1
+
+    
 
     def projectileDestructor(self):
         width = scene.screen_width()
@@ -553,6 +565,31 @@ class Game:
                         
                 i += 1
 
+    def addScore(self, score:int = 0, item:str = ""):
+        if item == "":
+            self.score += score
+        elif item == "starItem":
+            self.score += 5
+
+
+
+    def bombActive(self, first: bool = False):
+        if len(self.enemies) > 0:
+            for g in self.enemies:
+                for i in range(len(g.projectiles)):
+                    cur2: Projectile = g.projectiles[i]
+                    if first:
+                        starItem = sprites.create(assets.image("starItem"), 6)
+                        starItem.set_position(cur2.sprite.x, cur2.sprite.y)
+                        starItem.follow(self.player.sprite)
+                        self.starItems.append(starItem)
+                        
+                    sprites.destroy(cur2.sprite)
+                    g.projectiles.remove_at(i)
+
+
+
+
     def waves(self):
         
         if game.runtime() > self.nextWave:
@@ -574,13 +611,15 @@ class Game:
             #print("frametime: " + str(game.runtime() - self.prevRunTime))
             startOfUpdate = control.micros()
             if not self.gameOverActive:
-                self.projectileTest()
+                #self.projectileTest()
                 self.player.movementController()
                 self.projectileDestructor()
                 self.player.shoot()
                 if self.player.sprite.x > 115: self.player.sprite.set_position(115, self.player.sprite.y), self.player.skin.set_position(115, self.player.sprite.y)
                 self.enemyActions()
                 self.waves()
+                if controller.A.is_pressed(): self.player.bomb(); self.bombActive(first = True); self.redrawHud()
+                if game.runtime() - self.player.bombStart <= 6000: self.bombActive()
             if self.player.health <= 0: self.gameOver()
             self.frametimes(startOfUpdate, control.micros())
 

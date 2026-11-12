@@ -292,6 +292,7 @@ class Player {
     power: number
     lastHit: number
     Lasers: boolean
+    bombStart: number
     l1: Sprite
     l2: Sprite
     constructor() {
@@ -310,6 +311,7 @@ class Player {
         // so you're not invincible at the start of the game
         // self.spawnLasers()
         this.Lasers = false
+        this.bombStart = -10000
     }
     
     public takeDamage() {
@@ -346,10 +348,6 @@ class Player {
             this.sprite.z = 10
         } else {
             this.sprite.z = 0
-        }
-        
-        if (controller.A.isPressed()) {
-            this.bomb()
         }
         
         this.sprite.setVelocity(xVel, yVel)
@@ -421,7 +419,12 @@ class Player {
     }
     
     public bomb() {
-        console.log("bomb")
+        if (this.bombs > 0 && game.runtime() - this.bombStart > 6100) {
+            this.bombStart = game.runtime()
+            console.log("bomb")
+            this.bombs -= 1
+        }
+        
         
     }
     
@@ -433,6 +436,7 @@ class Game {
     player: Player
     projectiles: Projectile[]
     enemies: Enemy[]
+    starItems: Sprite[]
     frameTimeList: number[]
     gameOverActive: boolean
     continues: number
@@ -448,6 +452,7 @@ class Game {
         this.player = new Player()
         this.projectiles = []
         this.enemies = []
+        this.starItems = []
         this.frameTimeList = []
         info.showScore(true)
         this.gameOverActive = false
@@ -457,6 +462,10 @@ class Game {
         this.highScore = 0
         this.score = 0
         this.graze = 0
+    }
+    
+    public redrawHud() {
+        this.hud.buildHud(this.highScore, this.score, this.player.health, this.player.bombs, this.player.power, this.graze)
     }
     
     public gameOver() {
@@ -480,6 +489,7 @@ class Game {
             this.player.lastHit = game.runtime()
             sprites.destroy(this.hud.gameOverSprite)
             this.gameOverActive = false
+            this.redrawHud()
         }
         
     }
@@ -496,6 +506,9 @@ class Game {
         // 2 = player projectile
         // 3 = enemy projectile
         // 4 = enemy
+        // 5 = playerLaser
+        // 6 = starItem
+        // 7 = powerItemSmall
         // 999 = hud
         sprites.onOverlap(0, 1, function testOverlap() {
             this.collisionHandler()
@@ -537,7 +550,7 @@ class Game {
         })
         sprites.onOverlap(0, 3, function playerDamaged(playerSprite: Sprite, projSprite: Sprite) {
             let hitProjectile : Projectile = null
-            if (game.runtime() - this.player.lastHit >= 3000) {
+            if (game.runtime() - this.player.lastHit >= 3000 && game.runtime() - this.player.bombStart >= 6200) {
                 // invulnerability handling
                 for (let enemy of gameObj.enemies) {
                     for (let i = 0; i < enemy.projectiles.length; i++) {
@@ -554,6 +567,7 @@ class Game {
                     }
                 }
                 gameObj.player.takeDamage()
+                this.redrawHud()
             }
             
         })
@@ -660,6 +674,37 @@ class Game {
         
     }
     
+    public addScore(score: number = 0, item: string = "") {
+        if (item == "") {
+            this.score += score
+        } else if (item == "starItem") {
+            this.score += 5
+        }
+        
+    }
+    
+    public bombActive(first: boolean = false) {
+        let cur2: Projectile;
+        let starItem: Sprite;
+        if (this.enemies.length > 0) {
+            for (let g of this.enemies) {
+                for (let i = 0; i < g.projectiles.length; i++) {
+                    cur2 = g.projectiles[i]
+                    if (first) {
+                        starItem = sprites.create(assets.image`starItem`, 6)
+                        starItem.setPosition(cur2.sprite.x, cur2.sprite.y)
+                        starItem.follow(this.player.sprite)
+                        this.starItems.push(starItem)
+                    }
+                    
+                    sprites.destroy(cur2.sprite)
+                    g.projectiles.removeAt(i)
+                }
+            }
+        }
+        
+    }
+    
     public waves() {
         if (game.runtime() > this.nextWave) {
             this.enemies.push(new Enemy("test", this.player))
@@ -684,7 +729,7 @@ class Game {
             // print("frametime: " + str(game.runtime() - self.prevRunTime))
             let startOfUpdate = control.micros()
             if (!this.gameOverActive) {
-                this.projectileTest()
+                // self.projectileTest()
                 this.player.movementController()
                 this.projectileDestructor()
                 this.player.shoot()
@@ -694,6 +739,16 @@ class Game {
                 
                 this.enemyActions()
                 this.waves()
+                if (controller.A.isPressed()) {
+                    this.player.bomb()
+                    this.bombActive(true)
+                    this.redrawHud()
+                }
+                
+                if (game.runtime() - this.player.bombStart <= 6000) {
+                    this.bombActive()
+                }
+                
             }
             
             if (this.player.health <= 0) {
