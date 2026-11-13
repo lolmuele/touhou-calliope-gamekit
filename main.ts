@@ -660,7 +660,7 @@ class Game {
             for (let o of this.frameTimeList) {
                 this.frameAverage += o
             }
-            this.frameAverage = Math.idiv(this.frameAverage, 59)
+            this.frameAverage = Math.idiv(this.frameAverage, 60)
             this.frameTimeList = []
         }
         

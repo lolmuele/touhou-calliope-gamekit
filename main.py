@@ -586,7 +586,7 @@ class Game:
             self.frameAverage = 0
             for o in self.frameTimeList:
                 self.frameAverage += o
-            self.frameAverage = self.frameAverage // 59
+            self.frameAverage = self.frameAverage // 60
             self.frameTimeList = []
 
         self.codeTimeList.append((t2 - t1))
