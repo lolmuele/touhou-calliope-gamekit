@@ -9,6 +9,8 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
 
 ---
 
+**Standing permission (owner, 2026-11-13):** Claude may edit this file whenever it sees fit, without asking. Scope is this file only. Other files in the repo are only changed when the owner asks.
+
 ## 1. Project and working style
 
 - MakeCode Arcade, **Python** editor (preferredEditor: pyprj), target Arcade 4.1.x, runs on the
