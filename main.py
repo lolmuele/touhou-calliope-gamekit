@@ -60,8 +60,6 @@ class HUD:
         self.gameOverSprite.set_position(60, 60)
     
         
-        
-
 #TODO: 
 
 #add enemies
@@ -75,9 +73,10 @@ class HUD:
     #iframes after hit -works
     #game over, continue & restart -kinda, really basic but you can respawn
 
-#add bombs
-#add hud functionality
+#add bombs -works
+#add hud functionality -works
 #make hitbox not move within the sprite -works i'm pretty sure
+
 #add bosses
 #visuals (ugh)
 #add menu
