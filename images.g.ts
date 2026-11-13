@@ -607,6 +607,17 @@ cccccccccccccccccccccccccccccccccccccccc
 4 2 1 2 2 2 
 4 4 4 4 4 4 
 `;
+            case "image12":
+            case "redBall":return img`
+. . . 2 2 . . . 
+. 2 2 . . 2 2 . 
+. 2 . 2 2 . 2 . 
+2 . 2 2 2 2 . 2 
+2 . 2 2 2 2 . 2 
+. 2 . 2 2 . 2 . 
+. 2 2 . . 2 2 . 
+. . . 2 2 . . . 
+`;
             case "image9":
             case "marisaLaser":return img`
 fc11cf
@@ -729,17 +740,6 @@ fc11cf
 fc11cf
 fc11cf
 fc11ff
-`;
-            case "image12":
-            case "redBall":return img`
-. . . 2 2 . . . 
-. 2 2 . . 2 2 . 
-. 2 . 2 2 . 2 . 
-2 . 2 2 2 2 . 2 
-2 . 2 2 2 2 . 2 
-. 2 . 2 2 . 2 . 
-. 2 2 . . 2 2 . 
-. . . 2 2 . . . 
 `;
         }
         return null;

@@ -256,7 +256,7 @@ class Player:
         self.slowDownVariable = 0
         self.skin = sprites.create(assets.tile("""marisa"""))
         self.skin.set_position(self.sprite.x , self.sprite.y - 1)
-        self.health = 100
+        self.health = 3
         self.bombs = 3
         self.power = 0
         self.lastHit = -3000 #so you're not invincible at the start of the game
@@ -268,6 +268,7 @@ class Player:
     
     def takeDamage(self):
         self.health -= 1
+        self.bombs = 3 #don't question it, this is how EOSD works, even if you have more than 3 
         scene.camera_shake(2, 300) #visual feedback for getting hit
         self.lastHit = game.runtime()
         animation.run_image_animation(self.skin,  #visual feedback for i-frames
@@ -433,12 +434,12 @@ i = 0
 class Game:
     def __init__(self):
         self.hud = HUD()
+        self.hudChanged = False
         self.player = Player()
         self.projectiles: List[Projectile] = []
         self.enemies: List[Enemy] = []
         self.frameTimeList = []
         self.codeTimeList = []
-        info.show_score(True)
         self.gameOverActive = False
         self.continues = 3
         self.lives = 3
@@ -482,7 +483,7 @@ class Game:
                 self.player.lastHit = game.runtime() 
                 sprites.destroy(self.hud.gameOverSprite)
                 self.gameOverActive = False
-                self.redrawHud()
+                self.hudChanged = True
 
     def collisionCheck(self):
         #spritekinds:
@@ -539,7 +540,7 @@ class Game:
                             break
 
                 gameObj.player.takeDamage()
-                self.redrawHud()
+                self.hudChanged = True
 
         sprites.on_overlap(0, 3, playerDamaged)
 
@@ -617,7 +618,7 @@ class Game:
                 
         #player projectiles
         if len(self.player.projectiles) > 0:
-            for i in range(len(self.player.projectiles)):
+            for i in range(len(self.player.projectiles)-1, -1, -1):
                 cur1: Projectile = self.player.projectiles[i]
                 if cur1.sprite.x < 0 - 15 or cur1.sprite.x > width - 15 or cur1.sprite.y < 0 - 15 or cur1.sprite.y > height + 15:
                     sprites.destroy(cur1.sprite)
@@ -626,7 +627,7 @@ class Game:
         #enemy projectiles
         if len(self.enemies) > 0:
             for g in self.enemies:
-                for i in range(len(g.projectiles)):
+                for i in range(len(g.projectiles)-1, -1, -1):
                     cur2: Projectile = g.projectiles[i]
                     if cur2.sprite.x < 0 - 15 or cur2.sprite.x > width - 15 or cur2.sprite.y < 0 - 15 or cur2.sprite.y > height + 15:
                         sprites.destroy(cur2.sprite)
@@ -650,7 +651,7 @@ class Game:
         elif item == "starItem":
             self.score += 5
 
-        self.redrawHud()
+        self.hudChanged = True
 
 
     def bombActive(self, first: bool = False):
@@ -683,8 +684,8 @@ class Game:
     def mainLoop(self):
         self.prevRunTime = 0
         self.collisionCheck()
-        game.stats = True
         self.hud.buildHud(highScore = self.highScore, score = self.score, lives = self.player.health, bombs = self.player.bombs, power = self.player.power, graze = self.graze)
+        
         def onUpdate():
             #print("frametime: " + str(game.runtime() - self.prevRunTime))
             startOfUpdate = control.micros()
@@ -695,12 +696,14 @@ class Game:
                 if self.player.sprite.x > 115: self.player.sprite.set_position(115, self.player.sprite.y), self.player.skin.set_position(115, self.player.sprite.y)
                 self.enemyActions()
                 self.waves()
-                if controller.A.is_pressed() and not self.blockBomb and self.player.bombs > 0: self.player.bomb(); self.bombActive(first = True); self.redrawHud()
+                #bombing
+                if controller.A.is_pressed() and not self.blockBomb and self.player.bombs > 0 and game.runtime() - self.player.bombStart >= 6000: self.player.bomb(); self.bombActive(first = True); self.hudChanged = True
                 elif self.blockBomb and not controller.A.is_pressed(): self.blockBomb = False
                 if game.runtime() - self.player.bombStart <= 6000: self.bombActive()
             if self.player.health <= 0: self.gameOver()
+            if self.hudChanged: self.redrawHud()
             self.frametimes(startOfUpdate, control.micros())
-
+            
 
 
         game.on_update(onUpdate)

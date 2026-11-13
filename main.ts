@@ -299,7 +299,7 @@ class Player {
         this.slowDownVariable = 0
         this.skin = sprites.create(assets.tile`marisa`)
         this.skin.setPosition(this.sprite.x, this.sprite.y - 1)
-        this.health = 100
+        this.health = 3
         this.bombs = 3
         this.power = 0
         this.lastHit = -3000
@@ -312,6 +312,8 @@ class Player {
     
     public takeDamage() {
         this.health -= 1
+        this.bombs = 3
+        // don't question it, this is how EOSD works, even if you have more than 3 
         scene.cameraShake(2, 300)
         // visual feedback for getting hit
         this.lastHit = game.runtime()
@@ -481,6 +483,7 @@ class Player {
 let i = 0
 class Game {
     hud: HUD
+    hudChanged: boolean
     player: Player
     projectiles: Projectile[]
     enemies: Enemy[]
@@ -501,12 +504,12 @@ class Game {
     prevRunTime: number
     constructor() {
         this.hud = new HUD()
+        this.hudChanged = false
         this.player = new Player()
         this.projectiles = []
         this.enemies = []
         this.frameTimeList = []
         this.codeTimeList = []
-        info.showScore(true)
         this.gameOverActive = false
         this.continues = 3
         this.lives = 3
@@ -543,7 +546,7 @@ class Game {
             this.player.lastHit = game.runtime()
             sprites.destroy(this.hud.gameOverSprite)
             this.gameOverActive = false
-            this.redrawHud()
+            this.hudChanged = true
         }
         
     }
@@ -612,7 +615,7 @@ class Game {
                     }
                 }
                 gameObj.player.takeDamage()
-                this.redrawHud()
+                this.hudChanged = true
             }
             
         })
@@ -696,7 +699,7 @@ class Game {
         
         // player projectiles
         if (this.player.projectiles.length > 0) {
-            for (i = 0; i < this.player.projectiles.length; i++) {
+            for (i = this.player.projectiles.length - 1; i > -1; i += -1) {
                 cur1 = this.player.projectiles[i]
                 if (cur1.sprite.x < 0 - 15 || cur1.sprite.x > width - 15 || cur1.sprite.y < 0 - 15 || cur1.sprite.y > height + 15) {
                     sprites.destroy(cur1.sprite)
@@ -709,7 +712,7 @@ class Game {
         // enemy projectiles
         if (this.enemies.length > 0) {
             for (let g of this.enemies) {
-                for (i = 0; i < g.projectiles.length; i++) {
+                for (i = g.projectiles.length - 1; i > -1; i += -1) {
                     cur2 = g.projectiles[i]
                     if (cur2.sprite.x < 0 - 15 || cur2.sprite.x > width - 15 || cur2.sprite.y < 0 - 15 || cur2.sprite.y > height + 15) {
                         sprites.destroy(cur2.sprite)
@@ -746,7 +749,7 @@ class Game {
             this.score += 5
         }
         
-        this.redrawHud()
+        this.hudChanged = true
     }
     
     public bombActive(first: boolean = false) {
@@ -789,7 +792,6 @@ class Game {
     public mainLoop() {
         this.prevRunTime = 0
         this.collisionCheck()
-        game.stats = true
         this.hud.buildHud(this.highScore, this.score, this.player.health, this.player.bombs, this.player.power, this.graze)
         game.onUpdate(function onUpdate() {
             // print("frametime: " + str(game.runtime() - self.prevRunTime))
@@ -804,10 +806,11 @@ class Game {
                 
                 this.enemyActions()
                 this.waves()
-                if (controller.A.isPressed() && !this.blockBomb && this.player.bombs > 0) {
+                // bombing
+                if (controller.A.isPressed() && !this.blockBomb && this.player.bombs > 0 && game.runtime() - this.player.bombStart >= 6000) {
                     this.player.bomb()
                     this.bombActive(true)
-                    this.redrawHud()
+                    this.hudChanged = true
                 } else if (this.blockBomb && !controller.A.isPressed()) {
                     this.blockBomb = false
                 }
@@ -820,6 +823,10 @@ class Game {
             
             if (this.player.health <= 0) {
                 this.gameOver()
+            }
+            
+            if (this.hudChanged) {
+                this.redrawHud()
             }
             
             this.frametimes(startOfUpdate, control.micros())
