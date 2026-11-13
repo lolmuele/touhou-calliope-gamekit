@@ -401,7 +401,7 @@ class Player:
                     self.spawnLasers(5)
 
             elif self.tier == 5:
-                self.projectiles.append(playerProjectile(7))
+                self.projectiles.append(playerProjectile(12))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(189)
                 self.projectiles.append(playerProjectile(15))
@@ -413,7 +413,7 @@ class Player:
                 self.projectiles.append(playerProjectile(15))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(175)
-                self.projectiles.append(playerProjectile(7))
+                self.projectiles.append(playerProjectile(12))
                 self.projectiles[len(self.projectiles)-1].sprite.set_position(self.sprite.x, self.sprite.y-8)
                 self.projectiles[len(self.projectiles)-1].setAngle(171)
                 if not self.Lasers:
@@ -450,7 +450,7 @@ class Game:
 
     def redrawHud(self):
         self.hud.buildHud(highScore = self.highScore, score = self.score, lives = self.player.health, bombs = self.player.bombs, power = self.player.power, graze = self.graze)
-
+        self.hudChanged = False
     def gameOver(self):
 
         if not self.gameOverActive:

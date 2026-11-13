@@ -443,7 +443,7 @@ class Player {
                 }
                 
             } else if (this.tier == 5) {
-                this.projectiles.push(new playerProjectile(7))
+                this.projectiles.push(new playerProjectile(12))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(189)
                 this.projectiles.push(new playerProjectile(15))
@@ -455,7 +455,7 @@ class Player {
                 this.projectiles.push(new playerProjectile(15))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(175)
-                this.projectiles.push(new playerProjectile(7))
+                this.projectiles.push(new playerProjectile(12))
                 this.projectiles[this.projectiles.length - 1].sprite.setPosition(this.sprite.x, this.sprite.y - 8)
                 this.projectiles[this.projectiles.length - 1].setAngle(171)
                 if (!this.Lasers) {
@@ -522,6 +522,7 @@ class Game {
     
     public redrawHud() {
         this.hud.buildHud(this.highScore, this.score, this.player.health, this.player.bombs, this.player.power, this.graze)
+        this.hudChanged = false
     }
     
     public gameOver() {
