@@ -1,6 +1,7 @@
 # Touhou (EoSD-style) for the Calliope gamekit: working notes
 
-Written by Claude on 2026-11-13 from a long chat with the project owner.
+Written by Claude on 2026-11-13 from a long chat with the project owner. Section 5-7 refreshed by Claude on
+2026-11-13 (second session) after re-reading main.py blob 740e28a1.
 Claude has no memory between chats. To resume: open a new chat, connect the
 GitHub connector, and say "read NOTES.md and main.py in lolmuele/touhou-calliope-gamekit".
 
@@ -21,6 +22,8 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
 - The owner is colorblind (blue vs purple is hard). Name colors by hex and give previews.
 - Owner said not to comment on the unfinished game-over mechanic unless asked (this was early on).
 - Hardware tests are rare. Make each session count (see section 7).
+- The owner gets overwhelmed by big features (bosses) and procrastinates; break work into 20-45 minute pieces,
+  each testable on its own, and suggest one concrete next step.
 
 ## 2. MakeCode quirks learned in this project
 
@@ -134,35 +137,50 @@ Use EoSD damage and HP numbers as-is (they are in the same units). Convert only 
 3. Tier table keyed off `self.power` (tiers 0-5 DONE as `self.tier`; still set manually; should come from power).
 4. Laser tick: damage = laser_dps x elapsed seconds, where laser_dps = (dmg per frame) x 60
    (180 / 240 / 300 / 360 per laser). Clamp elapsed to ~100 ms. Keep a timer per (enemy, laser).
-5. Boss phases: list of HP values, `isSpell` flag applying the /7 rule.
+   Current code uses `damage * 40 // 16` per overlap frame, tuned for 40 ms frames; it deals half the dps at 20 ms frames.
+5. Boss phases: list of HP values, `isSpell` flag applying the /7 rule. See the boss plan below.
 6. Items: only `starItem` is handled; the rest of the item table is TODO.
 Sanity check: a 1600 HP spell phase should take ~7 s at tier 5 and ~19 s at tier 0 (if everything hits).
 
-## 6. State of the code (last read: main.py blob 859edea5, 2026-11-13) and known issues
+**Boss plan (agreed idea, small steps; none done yet).** Milestone "smallest boss" = one phase, one ring pattern, HP bar, stage clear.
+- B1. Reuse `Enemy`: add a `phases` list of HP values and `phaseIndex`; when health hits 0 and another phase exists,
+  advance instead of setting `dead`.
+- B2. One hard-coded pattern: a function that fires a ring of N bullets with `setAngle` (parameters: count, speed, angle offset).
+  Keep a constant cap on bullets alive until hardware numbers are in.
+- B3. Boss HP bar: a thin image sprite at the top, redrawn only when HP changes.
+- B4. Phase change: clear bullets into stars (reuse `bombActive` logic), short invulnerability, `isSpell` flag applying
+  the /7 damage rule, optional timer and spell name text.
+- B5. Movement: reuse the existing `route` system, looping.
+- B6. Intro, death, item drops, stage clear.
+Suggested order of work: fix `hudChanged` reset -> link `tier` to `power` and add power/point item drops from kills
+(makes the HUD power bar meaningful) -> smallest boss -> hardware test.
 
-Done: HUD with live power bar; game over screen with continue; player i-frames; time-based shooting;
-tiered shot with lasers; enemies with routes and homing shots; bombs that turn enemy bullets into stars;
-star collection; palette; sprites cropped to small images; stage background is `scene.set_background_color(6)`.
+## 6. State of the code (last read: main.py blob 740e28a1, 2026-11-13) and known issues
+
+Done: HUD with live power bar and dirty flag; game over screen with continue; player i-frames; time-based shooting;
+tiered shot with lasers (laser damage fixed, no longer 0); enemies with routes and homing shots; bombs that turn enemy
+bullets into stars (bomb trigger now requires bombs > 0 and cooldown); star collection; palette; sprites cropped to
+small images (`redBall` is now an image); stage background is `scene.set_background_color(6)`; debug prints,
+`info.show_score` and `game.stats` removed; player and enemy bullet lists are iterated backwards; frame interval is shown.
 
 Known issues (priority order):
-1. **Laser damage is always 0**: `damage // 16.6 * 40` floors before multiplying. Use `damage * 40 / 16.6`
-   (or the elapsed-time formula in section 5).
-2. `redrawHud()` clones a 40x120 image and prints ~8 strings. It runs every frame while A is held and once per star
-   collected. Use a dirty flag and redraw at most once per frame.
-3. Bomb trigger: `bombActive(first=True)` and `redrawHud()` run whenever A is pressed with bombs > 0, even during
-   the 6.1 s cooldown, because `bomb()` doesn't report whether it fired. Make `bomb()` return True/False.
-4. Bomb constants disagree (6000 effect / 6100 cooldown / 6200 invulnerability); define once.
-5. `projectileDestructor` removes from lists inside forward `range` loops (skips every other removed item), and the
-   enemy loop's index `i` drifts after a removal. A dead/offscreen enemy has `sprites.destroy` called every frame
-   until its bullets are gone, and offscreen-alive enemies keep running `goRoute`.
-6. `playerDamaged` calls `takeDamage()` even if no bullet was found; handler mixes `self` and `gameObj`.
-7. Game over: continues can go negative; `redrawHud` after continue; sprites keep moving and overlaps still fire
-   while the game over screen is up.
-8. Undeclared attributes in `Enemy` (`xVel`, `yVel`, `maxSpeed`) and `Game` (`average`, etc).
-9. `self.tier = 5` and `Player.power = 0` are test values.
-10. `info.show_score(True)` and `game.stats = True` do nothing useful; remove.
-11. Enemy bullet `redBall` image may still be larger than needed. Laser art is 8x120 (two sprites, ~1920 px/frame);
-    narrowing to ~4 px halves that and is closer to EoSD's scaled width.
+1. **`hudChanged` is never reset to False.** `onUpdate` does `if self.hudChanged: self.redrawHud()` and nothing clears the
+   flag, so after the first score/hit/bomb the HUD is cloned and redrawn (about 8 text prints) EVERY frame. One-line fix:
+   set it back to False after redrawing. Do this before the hardware test.
+2. Bomb constants disagree: the trigger checks `>= 6000` but `bomb()` requires `> 6100`. In the 6000-6100 ms window
+   `bombActive(first=True)` runs without spending a bomb (free clear). `playerDamaged` uses 6200 for invulnerability.
+   Define one constant.
+3. `enemyHitByLaser` damage is tuned for 40 ms frames (see section 5, step 4).
+4. Enemy removal loop in `projectileDestructor`: `i += 1` runs after a removal, so the index drifts; dead enemies waiting for
+   bullets get `sprites.destroy` every frame; offscreen-alive enemies keep running `goRoute`. The test-projectile list loop
+   is still forward (list is unused).
+5. `playerDamaged` calls `takeDamage()` even if no bullet was found; mixes `self` and `gameObj`.
+6. Game over: continues can go negative; sprites keep moving and overlaps still fire while the game over screen is up.
+7. Undeclared attributes: `Enemy` (`xVel`, `yVel`, `maxSpeed`), `Game` (`lastUpdateStart`, `frameAverage`, `average`, `yes`).
+8. `frametimes`: divides the frame average by 59 when the list has 60 entries, and `frameAverage` is undefined on the first display.
+9. `self.tier = 5` and `Player.power = 0` are test values; the HUD power bar does not follow the tier.
+10. Only `starItem` drops/collects; enemies drop nothing when killed.
+11. Laser art is 8x120 (two sprites, ~1920 px/frame); narrowing to ~4 px halves that and is closer to EoSD's scaled width.
 
 ## 7. Performance plan and the hardware test protocol
 
@@ -173,11 +191,11 @@ Optional bigger refactor (not done): drop Python wrapper objects and lists for b
 sprite data, so `enemyDamaged` can read it and destroy `projSprite` directly; let the engine delete offscreen
 sprites with `SpriteFlag.AUTO_DESTROY` (UNSURE of exact name, check autocomplete); `bombActive` can use
 `sprites.all_of_kind(3)`; `setAngle`/`homeTo` become plain functions taking a sprite. Pooling sprites is a later step if
-frame time shows garbage-collection spikes (high max with normal average).
+frame time shows garbage-collection spikes (high max with normal average). Boss patterns will multiply bullets, so decide
+on this refactor before adding dense patterns.
 
-Instrumentation to add before the session (owner is writing this):
-- Frame interval average (ms), worst single frame in the window (ms), own-code average (us), via running sums
-  (no lists). Show with `say_text` once per 60 frames, not the console.
+Instrumentation (partly done): frame interval average and own-code average are shown with `say_text` (using lists; running sums
+would avoid allocation). Still to add: worst single frame, sprite counts, `TEST_MODE`.
 - Sprite counts: `len(sprites.all_of_kind(k))` for kinds 2, 3, 4, plus `len(player.projectiles)`.
 - `TEST_MODE` constant at the top of main.py (one flash per mode).
 
@@ -192,8 +210,9 @@ Instrumentation to add before the session (owner is writing this):
 Procedure: player still at bottom center, no B, no A, no bomb, no console output. Record frame ms / max ms /
 own us / shots / bullets / enemies at 10 s, 20 s and 30 s. A rising reading means something accumulates.
 Plus one 3-minute run of mode 3 with readings at 0:30, 1:00, 2:00, 3:00 and list-vs-sprite counts. Reboot the device first
-(`control.micros()` may wrap after a long uptime, UNSURE). Fix the laser damage bug first so enemies live realistically.
-Report back as a table plus whether the slowness felt steady or jerky.
+(`control.micros()` may wrap after a long uptime, UNSURE). Fix the `hudChanged` bug first so the HUD isn't redrawn every frame.
+Report back as a table plus whether the slowness felt steady or jerky. The owner expects to have hardware access in a week or so
+(as of 2026-11-13).
 
 ## 8. Useful links
 
