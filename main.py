@@ -148,7 +148,7 @@ class redCircleProjectile(Projectile):
 
 
 class Enemy:
-    def __init__(self, spriteName: str, player: Player, health = 380):
+    def __init__(self, spriteName: str, player: Player, health = 950):
         if spriteName == "test":
             self.sprite = sprites.create(assets.tile("marisa"), 4)
             self.sprite.z = 10
@@ -256,7 +256,7 @@ class Player:
         self.slowDownVariable = 0
         self.skin = sprites.create(assets.tile("""marisa"""))
         self.skin.set_position(self.sprite.x , self.sprite.y - 1)
-        self.health = 3
+        self.health = 100
         self.bombs = 3
         self.power = 0
         self.lastHit = -3000 #so you're not invincible at the start of the game
@@ -437,6 +437,7 @@ class Game:
         self.projectiles: List[Projectile] = []
         self.enemies: List[Enemy] = []
         self.frameTimeList = []
+        self.codeTimeList = []
         info.show_score(True)
         self.gameOverActive = False
         self.continues = 3
@@ -574,17 +575,30 @@ class Game:
         sprites.on_overlap(4, 5, enemyHitByLaser)
 
     def frametimes(self, t1, t2):
-        self.frameTimeList.append((t2 - t1))
-        self.prevRunTime = game.runtime()
+        if self.lastUpdateStart == None:
+            self.lastUpdateStart = game.runtime()
+
+        else:
+            self.frameTimeList.append(game.runtime() - self.lastUpdateStart)
+            self.lastUpdateStart = game.runtime()
+
         if len(self.frameTimeList) == 60:
-            average = 0
-            for i in self.frameTimeList:
-                average += i
-            average = average / 60
-            #print("average frametime last 100 frames:" + str(average))
-            self.player.skin.say_text(str(int(average)))
-            
+            self.frameAverage = 0
+            for o in self.frameTimeList:
+                self.frameAverage += o
+            self.frameAverage = self.frameAverage // 59
             self.frameTimeList = []
+
+        self.codeTimeList.append((t2 - t1))
+        if len(self.codeTimeList) == 60:
+            self.average = 0
+            for i in self.codeTimeList:
+                self.average += i
+            self.average = self.average / 60
+            #print("average frametime last 100 frames:" + str(average))
+            self.player.skin.say_text(str(int(self.average)) + "ft:" + str(self.frameAverage))
+            
+            self.codeTimeList = []
 
 
 

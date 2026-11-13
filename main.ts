@@ -168,7 +168,7 @@ class Enemy {
     xVel: number
     yVel: number
     maxSpeed: number
-    constructor(spriteName: string, player: Player, health: number = 380) {
+    constructor(spriteName: string, player: Player, health: number = 950) {
         if (spriteName == "test") {
             this.sprite = sprites.create(assets.tile`marisa`, 4)
             this.sprite.z = 10
@@ -299,7 +299,7 @@ class Player {
         this.slowDownVariable = 0
         this.skin = sprites.create(assets.tile`marisa`)
         this.skin.setPosition(this.sprite.x, this.sprite.y - 1)
-        this.health = 3
+        this.health = 100
         this.bombs = 3
         this.power = 0
         this.lastHit = -3000
@@ -484,7 +484,8 @@ class Game {
     player: Player
     projectiles: Projectile[]
     enemies: Enemy[]
-    frameTimeList: number[]
+    frameTimeList: any[]
+    codeTimeList: number[]
     gameOverActive: boolean
     continues: number
     lives: number
@@ -494,6 +495,9 @@ class Game {
     graze: number
     blockBomb: boolean
     yes: boolean
+    lastUpdateStart: number
+    frameAverage: number
+    average: number
     prevRunTime: number
     constructor() {
         this.hud = new HUD()
@@ -501,6 +505,7 @@ class Game {
         this.projectiles = []
         this.enemies = []
         this.frameTimeList = []
+        this.codeTimeList = []
         info.showScore(true)
         this.gameOverActive = false
         this.continues = 3
@@ -639,18 +644,32 @@ class Game {
     }
     
     public frametimes(t1: number, t2: number) {
-        let average: number;
-        this.frameTimeList.push(t2 - t1)
-        this.prevRunTime = game.runtime()
+        if (this.lastUpdateStart == null) {
+            this.lastUpdateStart = game.runtime()
+        } else {
+            this.frameTimeList.push(game.runtime() - this.lastUpdateStart)
+            this.lastUpdateStart = game.runtime()
+        }
+        
         if (this.frameTimeList.length == 60) {
-            average = 0
-            for (let i of this.frameTimeList) {
-                average += i
+            this.frameAverage = 0
+            for (let o of this.frameTimeList) {
+                this.frameAverage += o
             }
-            average = average / 60
-            // print("average frametime last 100 frames:" + str(average))
-            this.player.skin.sayText("" + Math.trunc(average))
+            this.frameAverage = Math.idiv(this.frameAverage, 59)
             this.frameTimeList = []
+        }
+        
+        this.codeTimeList.push(t2 - t1)
+        if (this.codeTimeList.length == 60) {
+            this.average = 0
+            for (let i of this.codeTimeList) {
+                this.average += i
+            }
+            this.average = this.average / 60
+            // print("average frametime last 100 frames:" + str(average))
+            this.player.skin.sayText("" + Math.trunc(this.average) + "ft:" + ("" + this.frameAverage))
+            this.codeTimeList = []
         }
         
     }
