@@ -568,7 +568,7 @@ class Game:
 
             for i in range(len(gameObj.enemies)):
                 if gameObj.enemies[i].sprite == enemySprite:
-                    gameObj.enemies[i].takeDamage((sprites.read_data_number(laserSprite, "damage")) // 16.6 * 40) #last measured frametime on the calliope was 40ms
+                    gameObj.enemies[i].takeDamage((sprites.read_data_number(laserSprite, "damage")) * 40 // 16) #last measured frametime on the calliope was 40ms
 
 
 

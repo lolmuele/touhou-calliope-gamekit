@@ -636,7 +636,7 @@ class Game {
             let hitProjectile : Projectile = null
             for (let i = 0; i < gameObj.enemies.length; i++) {
                 if (gameObj.enemies[i].sprite == enemySprite) {
-                    gameObj.enemies[i].takeDamage(Math.idiv(sprites.readDataNumber(laserSprite, "damage"), 16.6) * 40)
+                    gameObj.enemies[i].takeDamage(Math.idiv(sprites.readDataNumber(laserSprite, "damage") * 40, 16))
                 }
                 
             }
