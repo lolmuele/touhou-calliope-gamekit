@@ -1,7 +1,7 @@
 # Touhou (EoSD-style) for the Calliope gamekit: working notes
 
 Written by Claude on 2026-11-13 from a long chat with the project owner. Section 5-7 refreshed by Claude on
-2026-11-13 (second session) after re-reading main.py blob 740e28a1.
+2026-11-13 (second session) after re-reading main.py blob 740e28a1. Section 9 (web simulator) added the same day.
 Claude has no memory between chats. To resume: open a new chat, connect the
 GitHub connector, and say "read NOTES.md and main.py in lolmuele/touhou-calliope-gamekit".
 
@@ -222,3 +222,17 @@ Report back as a table plus whether the slowness felt steady or jerky. The owner
 - Rotation extensions (not used): `Marupio/arcade-cleanEdge` (best for pre-rendering rotated bullets at startup),
   `robo-technical-group/pxt-arcade-image-transform` (keeps per-sprite state that is never freed; avoid for bullets).
 - MakeCode forum: Richard's Arcade Tips #6 (hitboxes and overlaps).
+
+## 9. Web simulator (GitHub Pages) and releases
+
+- The page https://lolmuele.github.io/touhou-calliope-gamekit/ (linked from README.md) runs a **prebuilt** file,
+  `assets/js/binary.js`, loaded by `index.html` via `makeCodeRun`. Committing code does NOT rebuild it.
+- That file (and `assets/version.txt`) is regenerated only when a **release** is created from MakeCode's GitHub window
+  ("Commit & create release to update Pages"). Pages then takes up to ~10 minutes, and browsers may need a hard refresh.
+  (VERIFIED from MakeCode docs and forum threads; the same forum threads say commits alone don't update the site.)
+- VERIFIED state on 2026-11-13: the repo has no tags and no releases; `assets/js/binary.js` was last changed by the initial
+  commit (2026-11-09); `assets/version.txt` is `0.0.0`. So the page shows the project as it was in the first commit.
+- `.github/workflows/makecode-release.yml` only runs when a release is created and attaches UF2 builds (d51, f4, rpi) to
+  the release. It does not deploy the Pages site. Which UF2 matches the Calliope gamekit is UNSURE.
+- Claude's GitHub tools have no way to create releases or tags, and `binary.js` is a compiled file that should not be
+  edited by hand. The owner has to create the release in the MakeCode editor.
