@@ -1,7 +1,7 @@
 # Touhou (EoSD-style) for the Calliope gamekit: working notes
 
 Written by Claude on 2026-11-13 from a long chat with the project owner. Sections 6-7 refreshed on 2026-11-16 after
-re-reading main.py blob aff1521f; the first hardware results were added to section 7 the same day.
+re-reading main.py blob aff1521f; the first hardware results and the engine analysis (section 2 and 7) were added the same day.
 Section 9 (web simulator) added 2026-11-13.
 Claude has no memory between chats. To resume: open a new chat, connect the
 GitHub connector, and say "read NOTES.md and main.py in lolmuele/touhou-calliope-gamekit".
@@ -26,6 +26,7 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
 - The owner gets overwhelmed by big features (bosses) and procrastinates; break work into 20-45 minute pieces,
   each testable on its own, and suggest one concrete next step.
 - The owner is blunt about quality: describe the project honestly (it is an early prototype, not "playable").
+- The owner prefers to write the fixes themselves, even when another AI hands over a full rewrite.
 
 ## 2. MakeCode quirks learned in this project
 
@@ -38,11 +39,8 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
 - Declare every attribute in `__init__`. Reading undefined attributes silently gives falsy/NaN.
 - `sprites.set_data_number` / `read_data_number` come from the **extension**
   `microsoft/arcade-sprite-data` (already added to this project).
-- Overlap events fire every frame two sprites overlap (UNSURE on exact semantics, but behavior matches).
-  Overlaps are pixel-perfect per a MakeCode forum post (Richard's Arcade Tips #6), so transparent padding
-  does not enlarge hitboxes.
 - Tiles and images are the same format (VERIFIED by decoding the jres). Tiles are 16x16; images can be any size.
-  Sprites draw 1:1 on the 160x120 screen. Smaller images draw faster (fewer pixels) (UNSURE on exact cost).
+  Sprites draw 1:1 on the 160x120 screen.
 - `assets.image(...)` may return a shared image (UNSURE). HUD code clones it before drawing.
 - On-screen console output is slow on the Calliope (MEASURED, frame time crept to 65+ ms with it on).
   Don't print in hot paths. Show diagnostics with `sprite.say_text(...)` instead.
@@ -50,8 +48,28 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
   between 30 and 50 Hz, both say capped). It does NOT measure your code's cost. `control.micros()` works.
 - Hardware was ~40 ms per frame with the test projectile spray enabled (MEASURED, earlier session).
 - Image literals in the jres store palette **indices**, not colors. Changing a palette hex recolors all art.
-- Sprite `z` is draw order; the 2nd arg of `sprites.create` is the *kind*, not a layer.
+- Sprite `z` is draw order; the 2nd arg of `sprites.create` is the *kind*, not a layer. Changing `z` sets a flag so the scene
+  re-sorts all sprites (full sort with a callback) before the next draw (VERIFIED in basesprite.ts / scene.ts, pxt-common-packages v14.1.7).
 - `sprites.destroy` the sprite AND remove the wrapper from any Python list, or it leaks.
+
+**Arcade physics engine facts (VERIFIED by reading `libs/game/physics.ts` and `spritemap.ts` of pxt-common-packages v14.1.7 on 2026-11-16;
+UNSURE whether the owner's editor ships exactly that version):**
+- `ArcadePhysicsEngine(maxVelocity = 500, minSingleStep = 2, maxSingleStep = 4)`; frame dt is capped: `MAX_TIME_STEP = 100` ms.
+  Above 100 ms per frame the world runs in slow motion.
+- Each sprite's movement for the frame is halved until a step is <= `maxSingleStep` px, and the frame runs as many sub-steps as the
+  fastest sprite needs. A 250 px/s shot moves 5-7 px at 20-27 ms frames (2 sub-steps) and 25 px at the 100 ms cap (8 sub-steps).
+- After EVERY sub-step `spriteCollisions` runs. It ignores which sprites moved: it walks every filled grid cell and compares every
+  pair of sprites in it. For each pair it creates/pushes into a per-sprite `_alreadyChecked` list and searches it with `indexOf`
+  BEFORE it checks whether the two kinds have an overlap handler. Cost grows roughly with (sprites per cell)^2 x sub-steps.
+- It returns immediately when no overlap handlers are registered, and a sprite is only inserted into the grid when its kind appears in
+  some registered overlap handler. So the cost only exists once `sprites.on_overlap` has been called for those kinds.
+- Grid: cell size = clamp(8, areaSize/4, 2 x largest sprite) = 40x30 px on this 160x120 screen (16 cells). The grid is cleared once per
+  frame, but moving sprites are re-inserted every sub-step and are never removed from the cells they pass through.
+- Every overlap event is run with `control.runInParallel` (its own thread), and fires again each frame the sprites still overlap.
+- A one-line mitigation exists: construct `ArcadePhysicsEngine(500, 2, 16)` (bigger max step) before any sprite is created and assign it
+  to the scene's physics engine (the report's Fix 1). UNSURE whether the Python spelling compiles. `maxStep` also has a setter.
+- `scene.createRenderable(z, handler(target, camera))` and `camera.drawOffsetX/Y` exist (used by the tilemap code), so things can be drawn
+  without being sprites.
 
 ## 3. Palette
 
@@ -156,8 +174,8 @@ Sanity check: a 1600 HP spell phase should take ~7 s at tier 5 and ~19 s at tier
 - B6. Intro, death, item drops, stage clear.
 Suggested order of work: link `tier` to `power` and add power/point item drops from kills
 (makes the HUD power bar meaningful) -> smallest boss -> hardware test results decide the bullet refactor.
-NOTE (2026-11-16): the hardware results in section 7 say sprite count is the dominant cost, so bosses/dense patterns
-must wait until the cost is understood.
+NOTE (2026-11-16): the hardware results in section 7 say sprite collision cost is the dominant problem, so bosses/dense patterns
+must wait until the engine-side fixes in section 7 are tried.
 
 ## 6. State of the code (last read: main.py blob aff1521f on master, 2026-11-16) and known issues
 
@@ -172,7 +190,7 @@ Known issues (priority order):
 1. Bomb constants disagree: the trigger checks `>= 6000` but `bomb()` requires `> 6100`. In the 6000-6100 ms window
    `bombActive(first=True)` runs without spending a bomb (free clear). `playerDamaged` uses 6200 for invulnerability.
    Define one constant.
-2. `enemyHitByLaser` damage is tuned for 40 ms frames (see section 5, step 4).
+2. `enemyHitByLaser` damage is tuned for 40 ms frames (see section 5, step 4). It also loops over all enemies without a `break`.
 3. Enemy removal loop in `projectileDestructor`: `i += 1` runs after a removal, so the index drifts; dead enemies waiting for
    bullets get `sprites.destroy` every frame; offscreen-alive enemies keep running `goRoute`. The test-projectile list loop
    is still forward (list is unused).
@@ -184,8 +202,9 @@ Known issues (priority order):
 8. Only `starItem` drops/collects; enemies drop nothing when killed.
 9. Laser art is 8x120 (two sprites, ~1920 px/frame); narrowing to ~4 px halves that and is closer to EoSD's scaled width.
 10. Focus (hold B) only slows movement when lasers exist (`B and self.Lasers`), so at tier 0 it does nothing.
-11. Time-based firing creates a feedback loop at low frame rates: at 200-300 ms frames only one volley fires per frame, so enemies
-    survive longer and pile up (14 alive in the M3 test), which slows the game further.
+11. Real-time timers (`game.runtime()`) are used for spawning, firing and route waits, but physics time is capped at 100 ms per frame.
+    At 200-300 ms frames the world moves in slow motion while enemies still spawn at full rate, so enemies pile up (14 alive in M3),
+    which slows the game further. Fix: one game clock advancing at most 100 ms per frame.
 
 ## 7. Performance plan and the hardware test
 
@@ -225,41 +244,45 @@ HUD 40x120, gameOver 120x120. Fixed draw cost now: HUD 4800 px, lasers 1920 px, 
 
 (own-code numbers disagree between the harness and the owner's bubble in modes 1, 3, 4 because of the unreset window; ranges shown.)
 
-Reading of the results (my interpretation, UNSURE where marked):
-- The empty game already needs ~27 ms on the device (~37 fps), above the simulator's 20 ms floor.
-- The cliff is mode 0 -> 1: five-way shot, 25 shot sprites alive: 27 -> 206 ms. The owner's own code only grew by ~11 ms, so about 95% of
-  the added time is outside the Python update (engine, memory/GC or similar; cause UNKNOWN). That is ~8 ms per added sprite, far more than
-  drawing 8x8 images explains.
-- Lasers (two 8x120 sprites + two 8x8) add ~40 ms (mode 1 -> 2). 14 enemies + 9 bullets add ~80 ms (mode 2 -> 3).
-- Hiding the HUD changes nothing (324 vs 328 ms): the HUD is not a factor.
-- No leak signs yet: list counts equal sprite counts (25/25, 28/28, ...). Worst frames are near the average except in modes 3 and 4
-  (580 and 541 ms spikes). The 3-minute drift run has not been done.
-- Python-side per-bullet loops cost roughly 0.45 ms per live bullet per frame (UNSURE: my estimate from the own-code numbers), so the
-  planned wrapper/list refactor would save ~10-25 ms of 200-300 ms. Worth doing later, but it is NOT the main problem.
-- Arcade seems to clamp the physics step at low frame rates (bullets live ~5 frames at 206 ms frames; UNSURE), so the game runs in slow motion.
+**Current best explanation (2026-11-16).** The owner's friend had another AI write a performance report (PDF, not in the repo). I checked its
+central claims against the engine source (facts in section 2) and they hold: collision work scales with the number of sprites sharing a grid
+cell squared, times the number of physics sub-steps, and sub-steps grow with frame time up to the 100 ms cap, which makes a feedback loop.
+It fits the data: the five-way spread keeps ~25 shots in one 40 px column cell; two 120 px lasers join those cells (+2 sprites on 25 is
+about +17% pair work, measured +19%: 206 -> 246 ms); hiding the HUD changes nothing. What is still UNSURE: the per-pair cost, the share
+of garbage collection (worst-frame spikes of 541/580 ms in modes 3/4 hint at it), the chip, and how much the baseline 27 ms is screen transfer.
+Unverified claims in that report: the hitbox pixel scan on `sprites.create`, the exact `eventcontext.ts` line for the 20 ms sleep, and that
+`HitboxOverlaps` exists in this version. Its Fix 1 tunnelling argument uses bounding boxes, but overlaps are pixel-perfect and the player
+hitbox is tiny, so a 16 px max step could let thin sprites slip through at very low frame rates.
 
-**Next step (proposed, not done):** a synthetic benchmark branch (`hardware-bench`) with modes that isolate what a sprite costs,
-independent of the game's code: (B0) nothing extra; (B1) 30 static 8x8 sprites; (B2) 30 moving sprites that are repositioned, not
-created; (B3) plain sprites created and destroyed at ~60/s with ~25 alive; (B4) B3 plus `set_data_number`; (B5) B3 plus `z = -10`;
-(B6) B3 plus the Python wrapper object, list and destructor loop. Compare frame ms to find which factor dominates.
-If the benchmark is not possible, cheap game-branch experiments are: fire every 167 ms at double damage; remove `z = -10` from
-`playerProjectile`; drop the data number from player shots; use 3 streams instead of 5.
+**Fix order (agreed idea, nothing applied yet):**
+1. One line: a physics engine with a bigger max step, e.g. `ArcadePhysicsEngine(500, 2, 16)` (8 is a safer first try: 1 sub-step at normal
+   frames, 4 at the cap), set before any sprite is created. Measure, then check for shots or bullets passing through things.
+2. A game clock that advances at most 100 ms per frame, used for spawning, firing, route waits, bomb and invulnerability timers.
+3. Only if still needed: player shots as plain numbers in lists (fixed point, swept box test against enemy boxes, drawn from a
+   `scene.createRenderable` callback that subtracts `camera.drawOffsetX/Y`). Big rewrite; the owner wants to write it themselves.
+4. Small: `break` in `enemyHitByLaser`, narrower lasers, don't set `z` on every new sprite.
+5. Last resort: three streams instead of five, or one volley every ~167 ms at double damage.
+(That report's PDF has clipped code lines at the right margin, so don't copy its example verbatim.)
 
-Optional bigger refactor (not done): drop Python wrapper objects and lists for bullets. Damage is already stored in
-sprite data, so `enemyDamaged` can read it and destroy `projSprite` directly; let the engine delete offscreen
-sprites with `SpriteFlag.AUTO_DESTROY` (UNSURE of exact name, check autocomplete); `bombActive` can use
-`sprites.all_of_kind(3)`; `setAngle`/`homeTo` become plain functions taking a sprite. Pooling sprites is a later step if
-frame time shows garbage-collection spikes (high max with normal average).
+**Benchmark branch `hardware-bench`** (commit 9a00c1e, created 2026-11-16, replaces `main.py` with a standalone sprite-cost benchmark; master untouched;
+UNSURE it compiles, not run yet). Runs 15 modes automatically (4 s warm-up + 10 s measure each, ~3.5 min), then shows one summary screen
+(mode, avg/worst frame ms, own code ms, sprites alive). A skips a mode; A on the summary restarts. Modes: 0 nothing, 1 hud+player,
+2 bubbles, 3 static30, 4 move30, 5 spawn (plain sprites created/destroyed, 5 per 80 ms, `lifespan` 450), 6 +data, 7 +z, 8 +Python wrapper/list/loop,
+9 all of the game's shot pattern, 10 same with 4 overlap handlers registered (they stay registered), 11 lasers8, 12 lasers4, 13 enemy14, 14 full.
+Prediction from the engine source: because `spriteCollisions` returns immediately and sprites are not inserted into the grid until overlap
+handlers exist, modes 3-9 should stay cheap and the big jump should appear at mode 10. If modes 5-9 are already slow, the theory is wrong.
+To test Fix 1 on the bench, flash it a second time with the engine line added as the first line of `main.py` and compare modes 10-14.
 
-Procedure used for the test: do not touch the D-pad; read each mode after it has run for a while; film or photograph the screen.
-Reboot the device first (`control.micros()` may wrap after a long uptime, UNSURE). Still to do: the 3-minute run in mode 3.
-Open the branch in MakeCode via the GitHub panel's branch switch. After testing is finished, delete the `hardware-test` branch.
+Procedure used for the earlier test: do not touch the D-pad; photograph the screen after the readings settle. Reboot the device first
+(`control.micros()` may wrap after a long uptime, UNSURE). Still to do: the 3-minute run in mode 3 of `hardware-test`.
+After testing is finished, delete the `hardware-test` and `hardware-bench` branches.
 
 ## 8. Useful links
 
 - Decompilation: https://github.com/GensokyoClub/th06 (`src/Player.cpp`, `src/BulletData.cpp`, `src/EnemyManager.cpp`)
 - Boss HP / shot analysis thread: http://www.shrinemaiden.org/forum/index.php?topic=15824.0
 - Sprite data extension: https://github.com/microsoft/arcade-sprite-data
+- Arcade engine source: https://github.com/microsoft/pxt-common-packages (`libs/game/physics.ts`, `spritemap.ts`, `scene.ts`, `basesprite.ts`)
 - Rotation extensions (not used): `Marupio/arcade-cleanEdge` (best for pre-rendering rotated bullets at startup),
   `robo-technical-group/pxt-arcade-image-transform` (keeps per-sprite state that is never freed; avoid for bullets).
 - MakeCode forum: Richard's Arcade Tips #6 (hitboxes and overlaps).
