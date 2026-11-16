@@ -1,7 +1,7 @@
 # Touhou (EoSD-style) for the Calliope gamekit: working notes
 
-Written by Claude on 2026-11-13 from a long chat with the project owner. Section 5-7 refreshed by Claude on
-2026-11-13 (second session) after re-reading main.py blob 740e28a1. Section 9 (web simulator) added the same day.
+Written by Claude on 2026-11-13 from a long chat with the project owner. Sections 6-7 refreshed on 2026-11-16 after
+re-reading main.py blob aff1521f. Section 9 (web simulator) added 2026-11-13.
 Claude has no memory between chats. To resume: open a new chat, connect the
 GitHub connector, and say "read NOTES.md and main.py in lolmuele/touhou-calliope-gamekit".
 
@@ -24,6 +24,7 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
 - Hardware tests are rare. Make each session count (see section 7).
 - The owner gets overwhelmed by big features (bosses) and procrastinates; break work into 20-45 minute pieces,
   each testable on its own, and suggest one concrete next step.
+- The owner is blunt about quality: describe the project honestly (it is an early prototype, not "playable").
 
 ## 2. MakeCode quirks learned in this project
 
@@ -152,37 +153,36 @@ Sanity check: a 1600 HP spell phase should take ~7 s at tier 5 and ~19 s at tier
   the /7 damage rule, optional timer and spell name text.
 - B5. Movement: reuse the existing `route` system, looping.
 - B6. Intro, death, item drops, stage clear.
-Suggested order of work: fix `hudChanged` reset -> link `tier` to `power` and add power/point item drops from kills
-(makes the HUD power bar meaningful) -> smallest boss -> hardware test.
+Suggested order of work: link `tier` to `power` and add power/point item drops from kills
+(makes the HUD power bar meaningful) -> smallest boss -> hardware test results decide the bullet refactor.
 
-## 6. State of the code (last read: main.py blob 740e28a1, 2026-11-13) and known issues
+## 6. State of the code (last read: main.py blob aff1521f on master, 2026-11-16) and known issues
 
-Done: HUD with live power bar and dirty flag; game over screen with continue; player i-frames; time-based shooting;
-tiered shot with lasers (laser damage fixed, no longer 0); enemies with routes and homing shots; bombs that turn enemy
-bullets into stars (bomb trigger now requires bombs > 0 and cooldown); star collection; palette; sprites cropped to
-small images (`redBall` is now an image); stage background is `scene.set_background_color(6)`; debug prints,
-`info.show_score` and `game.stats` removed; player and enemy bullet lists are iterated backwards; frame interval is shown.
+Done: HUD with live power bar and a dirty flag that now resets (`redrawHud` clears `hudChanged`); game over screen with
+continue; player i-frames; time-based shooting; tiered shot with lasers (laser damage fixed, no longer 0); one test enemy
+(950 HP) that spawns every 1.2 s and flies the same hard-coded route firing aimed shots; bombs that turn enemy bullets into
+stars (trigger requires bombs > 0 and a 6000 ms gap); star collection; palette; sprites cropped to small images; stage
+background is `scene.set_background_color(6)`; debug prints, `info.show_score` and `game.stats` removed; bullet lists
+iterated backwards; frame interval and own-code time are measured in `frametimes` (average now divides by 60).
 
 Known issues (priority order):
-1. **`hudChanged` is never reset to False.** `onUpdate` does `if self.hudChanged: self.redrawHud()` and nothing clears the
-   flag, so after the first score/hit/bomb the HUD is cloned and redrawn (about 8 text prints) EVERY frame. One-line fix:
-   set it back to False after redrawing. Do this before the hardware test.
-2. Bomb constants disagree: the trigger checks `>= 6000` but `bomb()` requires `> 6100`. In the 6000-6100 ms window
+1. Bomb constants disagree: the trigger checks `>= 6000` but `bomb()` requires `> 6100`. In the 6000-6100 ms window
    `bombActive(first=True)` runs without spending a bomb (free clear). `playerDamaged` uses 6200 for invulnerability.
    Define one constant.
-3. `enemyHitByLaser` damage is tuned for 40 ms frames (see section 5, step 4).
-4. Enemy removal loop in `projectileDestructor`: `i += 1` runs after a removal, so the index drifts; dead enemies waiting for
+2. `enemyHitByLaser` damage is tuned for 40 ms frames (see section 5, step 4).
+3. Enemy removal loop in `projectileDestructor`: `i += 1` runs after a removal, so the index drifts; dead enemies waiting for
    bullets get `sprites.destroy` every frame; offscreen-alive enemies keep running `goRoute`. The test-projectile list loop
    is still forward (list is unused).
-5. `playerDamaged` calls `takeDamage()` even if no bullet was found; mixes `self` and `gameObj`.
-6. Game over: continues can go negative; sprites keep moving and overlaps still fire while the game over screen is up.
-7. Undeclared attributes: `Enemy` (`xVel`, `yVel`, `maxSpeed`), `Game` (`lastUpdateStart`, `frameAverage`, `average`, `yes`).
-8. `frametimes`: divides the frame average by 59 when the list has 60 entries, and `frameAverage` is undefined on the first display.
-9. `self.tier = 5` and `Player.power = 0` are test values; the HUD power bar does not follow the tier.
-10. Only `starItem` drops/collects; enemies drop nothing when killed.
-11. Laser art is 8x120 (two sprites, ~1920 px/frame); narrowing to ~4 px halves that and is closer to EoSD's scaled width.
+4. `playerDamaged` calls `takeDamage()` even if no bullet was found; mixes `self` and `gameObj`.
+5. Game over: continues can go negative; sprites keep moving and overlaps still fire while the game over screen is up.
+6. Undeclared attributes: `Enemy` (`xVel`, `yVel`, `maxSpeed`), `Game` (`lastUpdateStart`, `frameAverage`, `average`, `yes`).
+   The first `say_text` shows `frameAverage` before it is assigned.
+7. `self.tier = 5` and `Player.power = 0` are test values; the HUD power bar does not follow the tier.
+8. Only `starItem` drops/collects; enemies drop nothing when killed.
+9. Laser art is 8x120 (two sprites, ~1920 px/frame); narrowing to ~4 px halves that and is closer to EoSD's scaled width.
+10. Focus (hold B) only slows movement when lasers exist (`B and self.Lasers`), so at tier 0 it does nothing.
 
-## 7. Performance plan and the hardware test protocol
+## 7. Performance plan and the hardware test
 
 Image sizes (decoded): player shot 8x8, enemy orb (miniHakkero) 8x8, laser 8x120, star 5x5, masterSpark 47x120,
 HUD 40x120, gameOver 120x120. Fixed draw cost now: HUD 4800 px, lasers 1920 px, shots 20-35 x 64 px.
@@ -194,25 +194,36 @@ sprites with `SpriteFlag.AUTO_DESTROY` (UNSURE of exact name, check autocomplete
 frame time shows garbage-collection spikes (high max with normal average). Boss patterns will multiply bullets, so decide
 on this refactor before adding dense patterns.
 
-Instrumentation (partly done): frame interval average and own-code average are shown with `say_text` (using lists; running sums
-would avoid allocation). Still to add: worst single frame, sprite counts, `TEST_MODE`.
-- Sprite counts: `len(sprites.all_of_kind(k))` for kinds 2, 3, 4, plus `len(player.projectiles)`.
-- `TEST_MODE` constant at the top of main.py (one flash per mode).
+**Hardware test harness: branch `hardware-test`** (created 2026-11-16, owner asked for it to be removable and to leave master unchanged).
+- Master is untouched. The branch is master plus one commit (b3d40e3) that only APPENDS a block at the end of `main.py`, between
+  `HWTEST-BEGIN` and `HWTEST-END` markers (VERIFIED from the commit stats: 138 additions, 0 deletions). Remove it by deleting the
+  branch, or by deleting the block.
+- UNSURE: I could not compile it. It may need small fixes in the MakeCode editor (for example assigning `p.l1` from outside the class,
+  or the bubble text width).
+- Behavior: after the first frame it takes over. **A cycles the mode (0-4)**; bombs are disabled (bombs forced to 0) and the player
+  can't be hit (`lastHit` refreshed every frame). Each mode change clears all enemies and bullets, resets the player to bottom centre,
+  and restarts the measurement window.
 
-| Mode | Tier | Lasers | Enemy spawns |
-|---|---|---|---|
-| 0 | 0 | off | off |
-| 1 | 5 | off | off |
-| 2 | 5 | on | off |
-| 3 | 5 | on | on (the real game) |
-| 4 | 5 | on | on, HUD sprite hidden (`SpriteFlag.INVISIBLE`) |
+| Mode | Shot tier | Lasers | Enemies | HUD |
+|---|---|---|---|---|
+| 0 | 0 | off | off | shown (engine baseline) |
+| 1 | 5 | off (1x1 invisible stand-ins stop real lasers spawning) | off | shown |
+| 2 | 5 | on | off | shown |
+| 3 | 5 | on | on | shown (the real game) |
+| 4 | 5 | on | on | hidden (`SpriteFlag.INVISIBLE`) |
 
-Procedure: player still at bottom center, no B, no A, no bomb, no console output. Record frame ms / max ms /
-own us / shots / bullets / enemies at 10 s, 20 s and 30 s. A rising reading means something accumulates.
-Plus one 3-minute run of mode 3 with readings at 0:30, 1:00, 2:00, 3:00 and list-vs-sprite counts. Reboot the device first
-(`control.micros()` may wrap after a long uptime, UNSURE). Fix the `hudChanged` bug first so the HUD isn't redrawn every frame.
-Report back as a table plus whether the slowness felt steady or jerky. The owner expects to have hardware access in a week or so
-(as of 2026-11-13).
+- Display, refreshed every 60 frames: upper bubble `M<mode> <avg frame ms>/<worst frame ms> c<own onUpdate us>`;
+  lower bubble `s<shot sprites>/<shots in list> b<enemy bullets> e<enemies> t<seconds in this mode>`.
+  Frame ms is measured between consecutive harness updates; `c` comes from master's own `Game.average` (the `frametimes` code).
+  If `s` and the list count drift apart, something leaks.
+- The owner's own player bubble (`<us>ft:<ms>`) from `frametimes` still shows too; useful as a cross-check.
+- Procedure: do not touch the D-pad. For each mode, record the readings at 10 s, 20 s and 30 s (filming the screen with a phone is easiest).
+  A rising reading means something accumulates. Then one 3-minute run in mode 3 with readings every 30 s. Reboot the device first
+  (`control.micros()` may wrap after a long uptime, UNSURE). Report as a table (mode, time, frame ms, worst ms, own us, s, list, b, e)
+  plus whether it felt steady or jerky.
+- Open the branch in MakeCode via the GitHub panel's branch switch, or Import > Import URL with the branch URL (UNSURE which of the two the
+  editor supports). After the test, delete the branch; master never contained the harness.
+- Results so far: none (the owner expects hardware access soon, as of 2026-11-16).
 
 ## 8. Useful links
 
@@ -236,3 +247,4 @@ Report back as a table plus whether the slowness felt steady or jerky. The owner
   the release. It does not deploy the Pages site. Which UF2 matches the Calliope gamekit is UNSURE.
 - Claude's GitHub tools have no way to create releases or tags, and `binary.js` is a compiled file that should not be
   edited by hand. The owner has to create the release in the MakeCode editor.
+- README.md was rewritten by Claude on 2026-11-14 as an honest "early prototype" description.
