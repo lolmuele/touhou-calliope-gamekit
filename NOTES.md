@@ -1,7 +1,8 @@
 # Touhou (EoSD-style) for the Calliope gamekit: working notes
 
 Written by Claude on 2026-11-13 from a long chat with the project owner. Sections 6-7 refreshed on 2026-11-16 after
-re-reading main.py blob aff1521f. Section 9 (web simulator) added 2026-11-13.
+re-reading main.py blob aff1521f; the first hardware results were added to section 7 the same day.
+Section 9 (web simulator) added 2026-11-13.
 Claude has no memory between chats. To resume: open a new chat, connect the
 GitHub connector, and say "read NOTES.md and main.py in lolmuele/touhou-calliope-gamekit".
 
@@ -47,7 +48,7 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
   Don't print in hot paths. Show diagnostics with `sprite.say_text(...)` instead.
 - Simulator frame time is ~20-23 ms because the loop sleeps to a ~20 ms floor (forum sources disagree
   between 30 and 50 Hz, both say capped). It does NOT measure your code's cost. `control.micros()` works.
-- Hardware was ~40 ms per frame with the test projectile spray enabled (MEASURED).
+- Hardware was ~40 ms per frame with the test projectile spray enabled (MEASURED, earlier session).
 - Image literals in the jres store palette **indices**, not colors. Changing a palette hex recolors all art.
 - Sprite `z` is draw order; the 2nd arg of `sprites.create` is the *kind*, not a layer.
 - `sprites.destroy` the sprite AND remove the wrapper from any Python list, or it leaks.
@@ -155,6 +156,8 @@ Sanity check: a 1600 HP spell phase should take ~7 s at tier 5 and ~19 s at tier
 - B6. Intro, death, item drops, stage clear.
 Suggested order of work: link `tier` to `power` and add power/point item drops from kills
 (makes the HUD power bar meaningful) -> smallest boss -> hardware test results decide the bullet refactor.
+NOTE (2026-11-16): the hardware results in section 7 say sprite count is the dominant cost, so bosses/dense patterns
+must wait until the cost is understood.
 
 ## 6. State of the code (last read: main.py blob aff1521f on master, 2026-11-16) and known issues
 
@@ -181,28 +184,22 @@ Known issues (priority order):
 8. Only `starItem` drops/collects; enemies drop nothing when killed.
 9. Laser art is 8x120 (two sprites, ~1920 px/frame); narrowing to ~4 px halves that and is closer to EoSD's scaled width.
 10. Focus (hold B) only slows movement when lasers exist (`B and self.Lasers`), so at tier 0 it does nothing.
+11. Time-based firing creates a feedback loop at low frame rates: at 200-300 ms frames only one volley fires per frame, so enemies
+    survive longer and pile up (14 alive in the M3 test), which slows the game further.
 
 ## 7. Performance plan and the hardware test
 
 Image sizes (decoded): player shot 8x8, enemy orb (miniHakkero) 8x8, laser 8x120, star 5x5, masterSpark 47x120,
 HUD 40x120, gameOver 120x120. Fixed draw cost now: HUD 4800 px, lasers 1920 px, shots 20-35 x 64 px.
 
-Optional bigger refactor (not done): drop Python wrapper objects and lists for bullets. Damage is already stored in
-sprite data, so `enemyDamaged` can read it and destroy `projSprite` directly; let the engine delete offscreen
-sprites with `SpriteFlag.AUTO_DESTROY` (UNSURE of exact name, check autocomplete); `bombActive` can use
-`sprites.all_of_kind(3)`; `setAngle`/`homeTo` become plain functions taking a sprite. Pooling sprites is a later step if
-frame time shows garbage-collection spikes (high max with normal average). Boss patterns will multiply bullets, so decide
-on this refactor before adding dense patterns.
-
 **Hardware test harness: branch `hardware-test`** (created 2026-11-16, owner asked for it to be removable and to leave master unchanged).
 - Master is untouched. The branch is master plus one commit (b3d40e3) that only APPENDS a block at the end of `main.py`, between
   `HWTEST-BEGIN` and `HWTEST-END` markers (VERIFIED from the commit stats: 138 additions, 0 deletions). Remove it by deleting the
-  branch, or by deleting the block.
-- UNSURE: I could not compile it. It may need small fixes in the MakeCode editor (for example assigning `p.l1` from outside the class,
-  or the bubble text width).
+  branch, or by deleting the block. It compiled and ran on the device.
 - Behavior: after the first frame it takes over. **A cycles the mode (0-4)**; bombs are disabled (bombs forced to 0) and the player
   can't be hit (`lastHit` refreshed every frame). Each mode change clears all enemies and bullets, resets the player to bottom centre,
-  and restarts the measurement window.
+  and restarts the harness's measurement window (the owner's own `frametimes` window is NOT reset, so its `ft:` and part of its
+  own-code number straddle two modes; trust the harness's M-line for frame time).
 
 | Mode | Shot tier | Lasers | Enemies | HUD |
 |---|---|---|---|---|
@@ -214,16 +211,49 @@ on this refactor before adding dense patterns.
 
 - Display, refreshed every 60 frames: upper bubble `M<mode> <avg frame ms>/<worst frame ms> c<own onUpdate us>`;
   lower bubble `s<shot sprites>/<shots in list> b<enemy bullets> e<enemies> t<seconds in this mode>`.
-  Frame ms is measured between consecutive harness updates; `c` comes from master's own `Game.average` (the `frametimes` code).
   If `s` and the list count drift apart, something leaks.
-- The owner's own player bubble (`<us>ft:<ms>`) from `frametimes` still shows too; useful as a cross-check.
-- Procedure: do not touch the D-pad. For each mode, record the readings at 10 s, 20 s and 30 s (filming the screen with a phone is easiest).
-  A rising reading means something accumulates. Then one 3-minute run in mode 3 with readings every 30 s. Reboot the device first
-  (`control.micros()` may wrap after a long uptime, UNSURE). Report as a table (mode, time, frame ms, worst ms, own us, s, list, b, e)
-  plus whether it felt steady or jerky.
-- Open the branch in MakeCode via the GitHub panel's branch switch, or Import > Import URL with the branch URL (UNSURE which of the two the
-  editor supports). After the test, delete the branch; master never contained the harness.
-- Results so far: none (the owner expects hardware access soon, as of 2026-11-16).
+
+**MEASURED results (owner's photos, 2026-11-16; one reading per mode, 12-28 s after the mode started; files mode1-5.jpg = modes 0-4):**
+
+| Mode | avg / worst frame ms | ~fps | own code | shots | bullets | enemies |
+|---|---|---|---|---|---|---|
+| 0 | 27 / 38 | 37 | 1.3 ms | 6 | 0 | 0 |
+| 1 | 206 / 255 | 5 | ~12.7 ms | 25 | 0 | 0 |
+| 2 | 246 / 268 | 4 | ~13 ms | 25 | 0 | 0 |
+| 3 | 328 / 580 | 3 | 12.6-22.6 ms | 29 | 9 | 14 |
+| 4 | 324 / 541 | 3 | 21.5-26.8 ms | 28 | 9 | 14 |
+
+(own-code numbers disagree between the harness and the owner's bubble in modes 1, 3, 4 because of the unreset window; ranges shown.)
+
+Reading of the results (my interpretation, UNSURE where marked):
+- The empty game already needs ~27 ms on the device (~37 fps), above the simulator's 20 ms floor.
+- The cliff is mode 0 -> 1: five-way shot, 25 shot sprites alive: 27 -> 206 ms. The owner's own code only grew by ~11 ms, so about 95% of
+  the added time is outside the Python update (engine, memory/GC or similar; cause UNKNOWN). That is ~8 ms per added sprite, far more than
+  drawing 8x8 images explains.
+- Lasers (two 8x120 sprites + two 8x8) add ~40 ms (mode 1 -> 2). 14 enemies + 9 bullets add ~80 ms (mode 2 -> 3).
+- Hiding the HUD changes nothing (324 vs 328 ms): the HUD is not a factor.
+- No leak signs yet: list counts equal sprite counts (25/25, 28/28, ...). Worst frames are near the average except in modes 3 and 4
+  (580 and 541 ms spikes). The 3-minute drift run has not been done.
+- Python-side per-bullet loops cost roughly 0.45 ms per live bullet per frame (UNSURE: my estimate from the own-code numbers), so the
+  planned wrapper/list refactor would save ~10-25 ms of 200-300 ms. Worth doing later, but it is NOT the main problem.
+- Arcade seems to clamp the physics step at low frame rates (bullets live ~5 frames at 206 ms frames; UNSURE), so the game runs in slow motion.
+
+**Next step (proposed, not done):** a synthetic benchmark branch (`hardware-bench`) with modes that isolate what a sprite costs,
+independent of the game's code: (B0) nothing extra; (B1) 30 static 8x8 sprites; (B2) 30 moving sprites that are repositioned, not
+created; (B3) plain sprites created and destroyed at ~60/s with ~25 alive; (B4) B3 plus `set_data_number`; (B5) B3 plus `z = -10`;
+(B6) B3 plus the Python wrapper object, list and destructor loop. Compare frame ms to find which factor dominates.
+If the benchmark is not possible, cheap game-branch experiments are: fire every 167 ms at double damage; remove `z = -10` from
+`playerProjectile`; drop the data number from player shots; use 3 streams instead of 5.
+
+Optional bigger refactor (not done): drop Python wrapper objects and lists for bullets. Damage is already stored in
+sprite data, so `enemyDamaged` can read it and destroy `projSprite` directly; let the engine delete offscreen
+sprites with `SpriteFlag.AUTO_DESTROY` (UNSURE of exact name, check autocomplete); `bombActive` can use
+`sprites.all_of_kind(3)`; `setAngle`/`homeTo` become plain functions taking a sprite. Pooling sprites is a later step if
+frame time shows garbage-collection spikes (high max with normal average).
+
+Procedure used for the test: do not touch the D-pad; read each mode after it has run for a while; film or photograph the screen.
+Reboot the device first (`control.micros()` may wrap after a long uptime, UNSURE). Still to do: the 3-minute run in mode 3.
+Open the branch in MakeCode via the GitHub panel's branch switch. After testing is finished, delete the `hardware-test` branch.
 
 ## 8. Useful links
 
