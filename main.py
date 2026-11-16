@@ -712,3 +712,141 @@ class Game:
 
 gameObj = Game()
 gameObj.mainLoop()
+
+
+# ===================== HWTEST-BEGIN =====================
+# Temporary hardware-test harness. It only exists on the "hardware-test" branch.
+# To remove it: delete everything between HWTEST-BEGIN and HWTEST-END. Nothing above this block was changed.
+#
+# Press A to cycle the test mode. Bombs are disabled while testing (A is used for the modes) and the player cannot be hit.
+#
+#   mode | shot tier | lasers | enemies | HUD
+#    0   |     0     |  off   |  off    | shown   (engine baseline)
+#    1   |     5     |  off   |  off    | shown
+#    2   |     5     |  on    |  off    | shown
+#    3   |     5     |  on    |  on     | shown   (the real game)
+#    4   |     5     |  on    |  on     | hidden
+#
+# Upper bubble : M<mode> <average frame ms>/<worst frame ms> c<your onUpdate code in microseconds>
+# Lower bubble : s<shot sprites>/<shots in the list> b<enemy bullets> e<enemies> t<seconds spent in this mode>
+# The bubbles refresh once every 60 frames. Leave the player where it is (it is reset to bottom centre on each mode change).
+
+class HwTest:
+    def __init__(self):
+        self.mode = 0
+        self.ready = False
+        self.lastT = -1
+        self.gapSum = 0
+        self.gapCount = 0
+        self.gapMax = 0
+        self.frames = 0
+        self.modeStart = 0
+        self.label1: Sprite = None
+        self.label2: Sprite = None
+
+hw = HwTest()
+
+def hwApplyMode():
+    g = gameObj
+    p = g.player
+    m = hw.mode
+
+    # clear the field so every mode starts clean
+    for e in g.enemies:
+        for b in e.projectiles:
+            sprites.destroy(b.sprite)
+        e.projectiles = []
+        sprites.destroy(e.sprite)
+    g.enemies = []
+    for b2 in p.projectiles:
+        sprites.destroy(b2.sprite)
+    p.projectiles = []
+
+    # lasers: remove whatever exists, then set up this mode
+    if p.Lasers:
+        p.killLasers()
+    if m == 1:
+        # tier 5 without lasers: invisible 1x1 stand-ins stop shoot() from spawning the real ones
+        blank = image.create(1, 1)
+        p.l1 = sprites.create(blank, 98)
+        p.l2 = sprites.create(blank, 98)
+        p.l1Laser = sprites.create(blank, 98)
+        p.l2Laser = sprites.create(blank, 98)
+        p.Lasers = True
+
+    if m == 0:
+        p.tier = 0
+    else:
+        p.tier = 5
+
+    if m >= 3:
+        g.nextWave = 0
+    else:
+        g.nextWave = 2000000000
+
+    g.hud.background.set_flag(SpriteFlag.INVISIBLE, m == 4)
+
+    p.sprite.set_position(60, 100)
+    p.skin.set_position(60, 100)
+    p.sprite.set_velocity(0, 0)
+
+    hw.modeStart = game.runtime()
+    hw.lastT = -1
+    hw.gapSum = 0
+    hw.gapCount = 0
+    hw.gapMax = 0
+    hw.frames = 0
+
+def hwSetup():
+    hw.label1 = sprites.create(image.create(1, 1), 98)
+    hw.label1.set_position(60, 20)
+    hw.label1.z = 1000
+    hw.label2 = sprites.create(image.create(1, 1), 98)
+    hw.label2.set_position(60, 46)
+    hw.label2.z = 1000
+    hwApplyMode()
+    hw.ready = True
+
+def hwNext():
+    if hw.ready:
+        hw.mode = (hw.mode + 1) % 5
+        hwApplyMode()
+
+def hwEnd():
+    if not hw.ready:
+        hwSetup()
+        return
+
+    g = gameObj
+    p = g.player
+    p.lastHit = game.runtime()   # the player can't be hit during the test
+    p.bombs = 0                  # A switches modes instead of bombing
+
+    now = control.micros()
+    if hw.lastT >= 0:
+        gap = now - hw.lastT
+        if gap >= 0:
+            hw.gapSum += gap
+            hw.gapCount += 1
+            if gap > hw.gapMax:
+                hw.gapMax = gap
+    hw.lastT = now
+    hw.frames += 1
+
+    if hw.frames >= 60:
+        frameMs = 0
+        if hw.gapCount > 0:
+            frameMs = hw.gapSum // (hw.gapCount * 1000)
+        ownUs = 0
+        if g.average != None:
+            ownUs = int(g.average)
+        hw.label1.say_text("M" + str(hw.mode) + " " + str(frameMs) + "/" + str(hw.gapMax // 1000) + " c" + str(ownUs))
+        hw.label2.say_text("s" + str(len(sprites.all_of_kind(2))) + "/" + str(len(p.projectiles)) + " b" + str(len(sprites.all_of_kind(3))) + " e" + str(len(sprites.all_of_kind(4))) + " t" + str((game.runtime() - hw.modeStart) // 1000))
+        hw.gapSum = 0
+        hw.gapCount = 0
+        hw.gapMax = 0
+        hw.frames = 0
+
+game.on_update(hwEnd)
+controller.A.on_event(ControllerButtonEvent.PRESSED, hwNext)
+# ===================== HWTEST-END =====================
