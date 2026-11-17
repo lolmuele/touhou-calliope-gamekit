@@ -1,10 +1,10 @@
 # =====================================================================
-#  HARDWARE SPRITE-COST BENCHMARK  (branch "hardware-bench")
+#  HARDWARE SPRITE-COST BENCHMARK  (branch "hardware-bench"), version 2
 #
 #  This branch REPLACES the game with a synthetic benchmark. It does not use any game code.
 #  Delete the branch afterwards; master still has the real game.
 #
-#  It runs 15 modes by itself, one after another (4 s warm-up + 10 s measuring each, about 3.5 minutes in total).
+#  It runs 18 modes by itself, one after another (4 s warm-up + 10 s measuring each, about 4 minutes in total).
 #  Don't touch anything. The background colour changes with every mode so you can see it advancing.
 #  While it runs nothing is drawn on top (no bubbles), so the measurement is not disturbed.
 #  At the end it shows ONE summary screen. Photograph that screen and send it.
@@ -14,31 +14,46 @@
 #
 #   0 nothing    no sprites at all (the bare engine floor)
 #   1 hud+plyr   the HUD image + player + skin, like the game at rest. They stay for all later modes.
-#   2 bubbles    three speech bubbles, like the old harness (shows how much the measurement itself cost)
-#   3 static30   30 static 8x8 sprites (pure cost of "sprites exist")
-#   4 move30     30 moving 8x8 sprites, wrapped around in Python (cost of motion)
-#   5 spawn      5 plain sprites every 80 ms, engine deletes them after 450 ms (cost of creating/destroying)
+#   2 bubbles    three speech bubbles (shows how much the old measurement itself cost)
+#   3 static30   30 static 8x8 sprites
+#   4 move30     30 moving 8x8 sprites, wrapped around in Python
+#   5 spawn      5 plain sprites every 80 ms, engine deletes them after 450 ms
 #   6 sp+data    like spawn, plus sprites.set_data_number on each
 #   7 sp+z       like spawn, plus sprite.z = -10 on each
 #   8 sp+wrap    like spawn, but each shot is a Python object in a list and a Python loop deletes it
 #   9 sp+all     like the game: wrapper + list + data + z + trig angle + Python delete loop
-#  10 sp+ovl     like 9, with the 4 overlap handlers registered (they stay registered for modes 11-14)
+#  10 sp+ovl     like 9, with the 4 overlap handlers registered (they stay registered for all later modes)
 #  11 lasers8    two 8x120 laser sprites + two orbs, nothing else
-#  12 lasers4    the same with 4x120 solid lasers (half the area)
+#  12 lasers4    the same with 4x120 solid lasers
 #  13 enemy14    14 enemy sprites (16x16) steering with float maths every frame
 #  14 full       9 + lasers8 + enemy14 + 9 enemy bullets (should look like game mode M3)
 #
-#  Compare for example: 5 vs 3 (churn), 6/7 vs 5 (data / z), 8 vs 5 (Python objects), 9 vs 8, 10 vs 9 (overlaps),
-#  12 vs 11 (laser area), and 14 vs the game's own 328 ms.
+#  NEW in version 2:
+#  15 sp+ghost   like 10 (same 25 shots, overlap handlers registered) but every shot has the GHOST_THROUGH_SPRITES flag,
+#                so the engine's collision grid ignores it. Prediction: back near ~30 ms.
+#  16 fullghst   like 14 (lasers + 14 enemies + 9 bullets) but the shots are ghost-through-sprites AND the program tests
+#                every shot against every enemy box itself (swept-ish box test, hits are only counted).
+#                This is the proposed fix for the real game. Prediction: far below the 465 ms of "full".
+#  17 sp+half    like 10 but a volley only every 160 ms (half as many shots alive). Prediction: roughly a quarter of the
+#                collision cost, because the cost grows with the square of the number of shots per cell.
+#
+#  FIX 1 TEST (optional, second run): to run all of this with a bigger physics step, remove the leading '# ' from the
+#  engine line below AND change STEP_LABEL to "16". Then compare modes 10, 14, 15, 16, 17 with the first run.
+#
+#  Useful comparisons: 5 vs 3, 6/7 vs 5, 8 vs 5, 9 vs 8, 10 vs 9, 15 vs 10, 16 vs 14, 17 vs 10.
 # =====================================================================
 
-NAMES = ["nothing", "hud+plyr", "bubbles", "static30", "move30", "spawn", "sp+data", "sp+z", "sp+wrap", "sp+all", "sp+ovl", "lasers8", "lasers4", "enemy14", "full"]
+NAMES = ["nothing", "hud+plyr", "bubbles", "static30", "move30", "spawn", "sp+data", "sp+z", "sp+wrap", "sp+all", "sp+ovl", "lasers8", "lasers4", "enemy14", "full", "sp+ghost", "fullghst", "sp+half"]
 WARM = 4000
 MEASURE = 10000
 
+# ---- FIX 1 TEST: remove the '# ' in front of the next line (it must run before any sprite exists) ----
+# game.current_scene().physics_engine = ArcadePhysicsEngine(500, 2, 16)
+STEP_LABEL = "4"
+
 
 class BenchShot:
-    def __init__(self, useData: bool, useZ: bool):
+    def __init__(self, useData: bool, useZ: bool, ghost: bool):
         self.xVel = 0
         self.yVel = 0
         self.maxSpeed = 250
@@ -47,6 +62,8 @@ class BenchShot:
             sprites.set_data_number(self.sprite, "damage", 12)
         if useZ:
             self.sprite.z = -10
+        if ghost:
+            self.sprite.set_flag(SpriteFlag.GHOST_THROUGH_SPRITES, True)
 
     def setAngle(self, angle):
         if angle < 0:
@@ -70,6 +87,8 @@ class Bench:
         self.codeCount = 0
         self.lastSpawn = 0
         self.lastBubble = 0
+        self.interval = 80
+        self.hits = 0
         self.ovlDone = False
         self.base: List[Sprite] = []
         self.sp: List[Sprite] = []
@@ -77,6 +96,7 @@ class Bench:
         self.enemies: List[Sprite] = []
         self.misc: List[Sprite] = []
         self.wp = []
+        self.box = []
         self.wraps: List[BenchShot] = []
         self.ang = [189, 185, 180, 175, 171]
         self.vx = []
@@ -109,6 +129,7 @@ def clearAll():
     B.enemies = []
     B.misc = []
     B.wp = []
+    B.box = []
     B.wraps = []
 
 
@@ -167,20 +188,20 @@ def plainShot(vx: number, vy: number, useData: bool, useZ: bool):
         s.z = -10
 
 
-def spawnTick(kind: int):
+def spawnTick(kind: int, ghost: bool):
     now = game.runtime()
-    if now - B.lastSpawn >= 80:
+    if now - B.lastSpawn >= B.interval:
         B.lastSpawn = now
         for k in range(5):
             if kind <= 7:
                 plainShot(B.vx[k], B.vy[k], kind == 6, kind == 7)
             elif kind == 8:
-                w = BenchShot(False, False)
+                w = BenchShot(False, False, False)
                 w.sprite.set_position(60, 92)
                 w.sprite.set_velocity(B.vx[k], B.vy[k])
                 B.wraps.append(w)
             else:
-                w2 = BenchShot(True, True)
+                w2 = BenchShot(True, True, ghost)
                 w2.sprite.set_position(60, 92)
                 w2.setAngle(B.ang[k])
                 B.wraps.append(w2)
@@ -211,6 +232,8 @@ def makeEnemies():
         e.set_position(10 + i * 8, 10 + (i % 4) * 20)
         B.enemies.append(e)
         B.wp.append(i % 4)
+    for j in range(56):
+        B.box.append(0)
 
 
 def enemyTick():
@@ -228,6 +251,24 @@ def enemyTick():
                 vy = 30 * dy / abs(dy)
                 vx = vy * (dx / dy)
             e.set_velocity(vx, vy)
+
+
+def hitTest():
+    # the proposed replacement for the engine's shot-vs-enemy overlap: enemy boxes are read once per frame,
+    # then every shot is tested against every enemy box with plain whole-number comparisons.
+    k = 0
+    for e in B.enemies:
+        B.box[k] = Math.floor(e.left)
+        B.box[k + 1] = Math.floor(e.top)
+        B.box[k + 2] = Math.floor(e.right)
+        B.box[k + 3] = Math.floor(e.bottom)
+        k += 4
+    for c in B.wraps:
+        x = Math.floor(c.sprite.x)
+        y = Math.floor(c.sprite.y)
+        for j in range(len(B.enemies)):
+            if x + 3 >= B.box[4 * j] and x - 3 <= B.box[4 * j + 2] and y + 13 >= B.box[4 * j + 1] and y - 13 <= B.box[4 * j + 3]:
+                B.hits += 1
 
 
 def makeBullets():
@@ -269,7 +310,11 @@ def enterMode(m: int):
     B.codeCount = 0
     B.lastSpawn = 0
     B.lastBubble = 0
-    scene.set_background_color(m + 1)
+    B.hits = 0
+    B.interval = 80
+    if m == 17:
+        B.interval = 160
+    scene.set_background_color((m % 15) + 1)
     if m == 1:
         createBase()
     elif m == 2:
@@ -288,7 +333,7 @@ def enterMode(m: int):
         makeLasers(thin)
     elif m == 13:
         makeEnemies()
-    elif m == 14:
+    elif m == 14 or m == 16:
         makeLasers(assets.image("marisaLaser"))
         makeEnemies()
         makeBullets()
@@ -300,13 +345,22 @@ def tickMode(m: int):
     elif m == 4:
         tickMove()
     elif m >= 5 and m <= 10:
-        spawnTick(m)
+        spawnTick(m, False)
     elif m == 13:
         enemyTick()
     elif m == 14:
-        spawnTick(9)
+        spawnTick(9, False)
         enemyTick()
         tickBullets()
+    elif m == 15:
+        spawnTick(9, True)
+    elif m == 16:
+        spawnTick(9, True)
+        enemyTick()
+        tickBullets()
+        hitTest()
+    elif m == 17:
+        spawnTick(9, False)
 
 
 def pad(text: str, n: int):
@@ -342,12 +396,12 @@ def showSummary():
     scene.set_background_color(1)
     summaryImg = image.create(160, 120)
     summaryImg.fill(1)
-    summaryImg.print_center("mode    avg/max  code n", y=2, color=15, font=image.font5)
+    summaryImg.print_center("mode    avg/max  code n", y=1, color=15, font=image.font5)
     for i in range(len(NAMES)):
         codeStr = str(B.rCode[i] // 1000) + "." + str((B.rCode[i] % 1000) // 100)
         line = pad(NAMES[i], 8) + pad(str(B.rAvg[i]) + "/" + str(B.rMax[i]), 8) + pad(codeStr, 5) + str(B.rN[i])
-        summaryImg.print_center(line, y=10 + i * 7, color=15, font=image.font5)
-    summaryImg.print_center("A = run again", y=114, color=15, font=image.font5)
+        summaryImg.print_center(line, y=7 + i * 6, color=15, font=image.font5)
+    summaryImg.print_center("step " + STEP_LABEL + "   A = run again", y=115, color=15, font=image.font5)
     box = sprites.create(summaryImg, 100)
     box.set_position(80, 60)
     box.z = 1000
