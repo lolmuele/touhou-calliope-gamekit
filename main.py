@@ -76,15 +76,15 @@ class Bench:
         self.lasers: List[Sprite] = []
         self.enemies: List[Sprite] = []
         self.misc: List[Sprite] = []
-        self.wp: List[int] = []
+        self.wp = []
         self.wraps: List[BenchShot] = []
         self.ang = [189, 185, 180, 175, 171]
         self.vx = []
         self.vy = []
-        self.rAvg: List[int] = []
-        self.rMax: List[int] = []
-        self.rCode: List[int] = []
-        self.rN: List[int] = []
+        self.rAvg = []
+        self.rMax = []
+        self.rCode = []
+        self.rN = []
         for a in self.ang:
             r = a * Math.PI / 180
             self.vx.append(Math.sin(r) * 250)
@@ -192,12 +192,12 @@ def spawnTick(kind: int):
                 B.wraps.remove_at(i)
 
 
-def makeLasers(img: Image):
+def makeLasers(laserImg: Image):
     for xx in [48, 72]:
         orb = sprites.create(assets.image("miniHakkero"), 99)
         orb.set_position(xx, 100)
         orb.z = -10
-        las = sprites.create(img, 5)
+        las = sprites.create(laserImg, 5)
         las.set_position(xx, 40)
         las.z = -10
         B.lasers.append(orb)
@@ -340,15 +340,15 @@ def showSummary():
         sprites.destroy(s)
     B.base = []
     scene.set_background_color(1)
-    img = image.create(160, 120)
-    img.fill(1)
-    img.print_center("mode    avg/max  code n", y=2, color=15, font=image.font5)
+    summaryImg = image.create(160, 120)
+    summaryImg.fill(1)
+    summaryImg.print_center("mode    avg/max  code n", y=2, color=15, font=image.font5)
     for i in range(len(NAMES)):
         codeStr = str(B.rCode[i] // 1000) + "." + str((B.rCode[i] % 1000) // 100)
         line = pad(NAMES[i], 8) + pad(str(B.rAvg[i]) + "/" + str(B.rMax[i]), 8) + pad(codeStr, 5) + str(B.rN[i])
-        img.print_center(line, y=10 + i * 7, color=15, font=image.font5)
-    img.print_center("A = run again", y=114, color=15, font=image.font5)
-    box = sprites.create(img, 100)
+        summaryImg.print_center(line, y=10 + i * 7, color=15, font=image.font5)
+    summaryImg.print_center("A = run again", y=114, color=15, font=image.font5)
+    box = sprites.create(summaryImg, 100)
     box.set_position(80, 60)
     box.z = 1000
 
