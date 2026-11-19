@@ -2,7 +2,7 @@
 
 Written by Claude on 2026-11-13 from a long chat with the project owner. Sections 6-7 refreshed on 2026-11-16 after
 re-reading main.py blob aff1521f; the first hardware results and the engine analysis (section 2 and 7) were added the same day.
-The benchmark results and benchmark v2 (section 7) were added on 2026-11-17. Section 9 (web simulator) added 2026-11-13.
+Benchmark v1 results (2026-11-17), benchmark v2 results and benchmark v3 (2026-11-19) are in section 7. Section 9 (web simulator) added 2026-11-13.
 Claude has no memory between chats. To resume: open a new chat, connect the
 GitHub connector, and say "read NOTES.md and main.py in lolmuele/touhou-calliope-gamekit".
 
@@ -11,7 +11,7 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
 
 ---
 
-**Standing permission (owner, 2026-11-13):** Claude may edit this file whenever it sees fit, without asking. Scope is this file only. Other files in the repo are only changed when the owner asks.
+**Standing permission (owner, 2026-11-13):** Claude may edit this file whenever it sees fit, without asking. Scope is this file only. Other files in the repo are only changed when the owner asks. (On 2026-11-19 the owner said Claude may add whatever is needed on the benchmark branches to make them work.)
 
 ## 1. Project and working style
 
@@ -37,9 +37,11 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
 - `range()` takes numbers: `range(len(lst))`, never `range(lst)`. Removing while iterating forward
   skips the next element; iterate backwards (`range(len(x) - 1, -1, -1)` compiles and is used in `bombActive`).
 - Declare every attribute in `__init__`. Reading undefined attributes silently gives falsy/NaN.
-- Compile gotchas (VERIFIED by the owner's errors, 2026-11-17): `List[int]` fails with "cannot find type 'int'" (use `List[number]` or no
+- Compile gotchas (VERIFIED by the owner's errors, 2026-11-17/18): `List[int]` fails with "cannot find type 'int'" (use `List[number]` or no
   annotation; plain `x: int` parameters are fine); a variable named `img` clashes with MakeCode's built-in image-literal function and gives
-  "types not compatible: (_: string) => Image" (use another name).
+  "types not compatible: (_: string) => Image" (use another name); assigning `ArcadePhysicsEngine(...)` to
+  `game.current_scene().physics_engine` in Python gives "types not compatible: PhysicsEngine and ArcadePhysicsEngine" (so do that in a .ts file).
+- `SpriteFlag.GHOST_THROUGH_SPRITES`, `Sprite.left/top/right/bottom`, `Math.floor`, `sprite.lifespan` all compiled and ran on the device (benchmark v2).
 - `sprites.set_data_number` / `read_data_number` come from the **extension**
   `microsoft/arcade-sprite-data` (already added to this project).
 - Tiles and images are the same format (VERIFIED by decoding the jres). Tiles are 16x16; images can be any size.
@@ -52,7 +54,7 @@ repo), MEASURED (owner observed it), or UNSURE (my belief, check before relying 
 - Image literals in the jres store palette **indices**, not colors. Changing a palette hex recolors all art.
 - Sprite `z` is draw order; the 2nd arg of `sprites.create` is the *kind*, not a layer. Changing `z` sets a flag so the scene
   re-sorts all sprites (full sort with a callback) before the next draw (VERIFIED in basesprite.ts / scene.ts, pxt-common-packages v14.1.7).
-  MEASURED on the device: this is cheap here (sp+z mode costs nothing measurable).
+  MEASURED on the device: this is cheap here.
 - `sprites.destroy` the sprite AND remove the wrapper from any Python list, or it leaks.
 
 **Arcade physics engine facts (VERIFIED by reading `libs/game/physics.ts` and `spritemap.ts` of pxt-common-packages v14.1.7 on 2026-11-16;
@@ -66,14 +68,15 @@ UNSURE whether the owner's editor ships exactly that version):**
   BEFORE it checks whether the two kinds have an overlap handler. Cost grows roughly with (sprites per cell)^2 x sub-steps.
 - It returns immediately when no overlap handlers are registered, and a sprite is only inserted into the grid when its kind appears in
   some registered overlap handler AND it does not have the ghost-through-sprites flag (`SPRITE_NO_SPRITE_OVERLAPS = GhostThroughSprites |
-  Destroyed | RelativeToCamera`; VERIFIED in current physics.ts via code search). `Sprite.overlapsWith` also returns false for such sprites.
+  Destroyed | RelativeToCamera`; VERIFIED in current physics.ts via code search; CONFIRMED on the device by benchmark mode sp+ghost). `Sprite.overlapsWith` also returns false for such sprites.
 - Grid: cell size = clamp(8, areaSize/4, 2 x largest sprite) = 40x30 px on this 160x120 screen (16 cells). The grid is cleared once per
   frame, but moving sprites are re-inserted every sub-step and are never removed from the cells they pass through.
 - Every overlap event is run with `control.runInParallel` (its own thread), and fires again each frame the sprites still overlap.
-- A one-line mitigation exists: construct `ArcadePhysicsEngine(500, 2, 16)` (bigger max step) before any sprite is created and assign it
-  to the scene's physics engine. UNSURE whether the Python spelling compiles. `maxStep` also has a setter.
 - `scene.createRenderable(z, handler(target, camera))` and `camera.drawOffsetX/Y` exist (used by the tilemap code), so things can be drawn
   without being sprites. `sprites.Flag.HitboxOverlaps` exists in current sprite.ts (skips the pixel test).
+- A bigger max step must be set from TypeScript: `game.currentScene().physicsEngine = new ArcadePhysicsEngine(500, 2, 16)` before any sprite
+  exists (benchmark v3 does this in `engine_step.ts`, listed first in pxt.json). UNSURE whether a hand-written .ts file next to main.py compiles
+  in the Python editor, and whether `settings` is reachable from it.
 
 ## 3. Palette
 
@@ -157,7 +160,7 @@ Use EoSD damage and HP numbers as-is (they are in the same units). Convert only 
 1. `Enemy.takeDamage(amount)` and per-projectile `damage` (DONE: damage lives in sprite data).
 2. Fire on timestamps, not frames: every 80-83 ms (DONE roughly; `lastShot = now`). Better: add to
    the timestamp so the average rate stays exact at 40 ms frames.
-   Hardware-friendly option: fire every ~167 ms at double damage (same dps, half the sprites; collision cost falls roughly with the SQUARE of the shot count).
+   Hardware-friendly option: fire every ~167 ms at double damage (same dps, half the sprites; MEASURED: half the shots cut a 215 ms frame to 46 ms).
 3. Tier table keyed off `self.power` (tiers 0-5 DONE as `self.tier`; still set manually; should come from power).
 4. Laser tick: damage = laser_dps x elapsed seconds, where laser_dps = (dmg per frame) x 60
    (180 / 240 / 300 / 360 per laser). Clamp elapsed to ~100 ms. Keep a timer per (enemy, laser).
@@ -190,7 +193,7 @@ background is `scene.set_background_color(6)`; debug prints, `info.show_score` a
 iterated backwards; frame interval and own-code time are measured in `frametimes` (average now divides by 60).
 
 Known issues (priority order):
-0. **Performance: the engine's collision scan with ~25 player shots in one grid cell costs ~185 ms per frame on the device (section 7).**
+0. **Performance: the engine's collision scan with ~25 player shots in one grid cell costs ~185 ms per frame on the device; ghost-through-sprites shots fix that part (section 7). With enemies, lasers and enemy bullets a further ~90 ms is still unexplained.**
 1. Bomb constants disagree: the trigger checks `>= 6000` but `bomb()` requires `> 6100`. In the 6000-6100 ms window
    `bombActive(first=True)` runs without spending a bomb (free clear). `playerDamaged` uses 6200 for invulnerability.
    Define one constant.
@@ -209,7 +212,7 @@ Known issues (priority order):
 11. Real-time timers (`game.runtime()`) are used for spawning, firing and route waits, but physics time is capped at 100 ms per frame.
     At 200-300 ms frames the world moves in slow motion while enemies still spawn at full rate, so enemies pile up (14 alive in M3),
     which slows the game further. Fix: one game clock advancing at most 100 ms per frame.
-12. Enemy steering costs ~4 ms of own code for 14 enemies on the device (benchmark `enemy14`); fine for now.
+12. Enemy steering costs ~4-5 ms of own code for 14 enemies on the device (benchmark `enemy14`); fine for now.
 
 ## 7. Performance: results, conclusions and plan
 
@@ -231,63 +234,63 @@ It compiled and ran on the device.
 | 3 | + enemies (the real game) | 328 / 580 | 12.6-22.6 ms | 29 | 9 | 14 |
 | 4 | same, HUD hidden | 324 / 541 | 21.5-26.8 ms | 28 | 9 | 14 |
 
-**MEASURED results, synthetic benchmark v1 on hardware (branch `hardware-bench`, owner's photo of the summary screen, 2026-11-17):**
+**MEASURED results, synthetic benchmark v1 then v2 (branch `hardware-bench`, owner's photos of the summary screen, 2026-11-17 and 2026-11-19; step 4 = engine default).**
+Modes 0-14 repeated within 1-3 ms between the two runs, so the measurements are repeatable. Combined table (v2 run; the photo had glare on sp+ovl and the
+right-hand columns were read by row order, so code/n values are UNSURE by a digit):
 
 | Mode | avg / worst ms | code ms | n alive |
 |---|---|---|---|
 | nothing | 26 / 36 | 0.0 | 0 |
 | hud+plyr | 26 / 36 | 0.0 | 0 |
-| bubbles | 26 / 36 | 0.1 | 0 |
-| static30 | 26 / 36 | 0.0 | 30 |
-| move30 | 26 / 37 | 0.9 | 30 |
-| spawn | 28 / 43 | 2.3 | 27 |
-| sp+data | 28 / 44 | 2.4 | 30 |
-| sp+z | 28 / 43 | 2.4 | 27 |
-| sp+wrap | 29 / 42 | 5.2 | 27 |
-| sp+all | 30 / 45 | 5.7 | 25 |
-| **sp+ovl** | **215 / 238** | 11.8 | 25 |
+| bubbles | 26 / 37 | 0.0 | 0 |
+| static30 | 26 / 35 | 0.0 | 30 |
+| move30 | 26 / 37 | 1.0 | 30 |
+| spawn | 28 / 43 | ~2.3 | ~27 |
+| sp+data | 28 / 44 | 2.4 | ~30 |
+| sp+z | 28 / 43 | ~2.4 | ~27 |
+| sp+wrap | 29 / 43 | ~5.1 | ~27 |
+| sp+all | 30 / 46 | 5.7 | 25 |
+| **sp+ovl** | **~215-220 / 239** | 11.9 | 25 |
 | lasers8 | 26 / 35 | 0.0 | 2 |
 | lasers4 | 26 / 35 | 0.0 | 2 |
-| enemy14 | 29 / 38 | 4.1 | 14 |
-| full | 465 / 529 | 17.1 | 50 |
+| enemy14 | 30 / 41 | 4.7 | 14 |
+| full | 468 / 512 | 18.2 | 50 |
+| **sp+ghost** | **30 / 46** | 5.7 | 25 |
+| **fullghst** | **121 / 139** | 21.1 | 50 |
+| **sp+half** | **46 / 68** | 3.3 | 15 |
 
-**Conclusions (the theory in the engine report was right; this confirms it):**
+**Conclusions so far:**
 - The bare device floor is ~26 ms (about 38 fps). Sprites existing, moving, being created/destroyed at ~60/s, having data, `z` or Python wrapper
-  objects add only ~0-4 ms in total (modes 3-9). The earlier suspicions (draw cost, garbage collection, data objects, `z`, Python loops, bubbles,
-  HUD) are all small.
-- Registering the overlap handlers (mode 10) with the SAME 25 shots takes the frame from 30 ms to 215 ms. That is the whole problem: the engine's
-  collision scan over crowded grid cells, repeated per sub-step. Estimate (UNSURE): 215 ms is capped at 8 sub-steps, so ~23 ms per scan of ~25
-  sprites in one cell, i.e. ~600 pair checks at ~35-40 microseconds each.
-- Lasers cost nothing on their own (lasers8 = lasers4 = 26 ms, with handlers registered): the +40 ms in the game came from sharing cells with the
-  shots. 14 enemies spread over the screen cost ~3 ms. A crowd of sprites in one cell is what hurts.
-- `full` (465 ms) is worse than the game's measured 328 ms, so the benchmark reproduces and slightly exaggerates the game.
-- Python-side per-bullet code is NOT the problem (sp+all is ~4 ms above the floor), so the wrapper/list refactor is not worth doing for speed.
+  objects add only ~0-4 ms in total. Draw cost, garbage collection, data objects, `z`, Python loops, bubbles and the HUD are all small.
+- Registering the overlap handlers with the SAME 25 shots takes the frame from 30 ms to ~215 ms (mode sp+ovl). That is the engine's collision scan over
+  crowded grid cells, repeated per sub-step. Estimate (UNSURE): ~23 ms per scan of ~25 sprites in one cell.
+- **CONFIRMED: ghost-through-sprites shots remove that cost completely** (sp+ghost 30 ms vs sp+ovl ~215 ms). Halving the shots also helps a lot (sp+half 46 ms).
+- With everything else on screen, ghost shots plus a manual hit test bring the game-like case from 468 ms (`full`) to 121 ms (`fullghst`): 3.9x better but still slow.
+  The Python part is 21 ms (the manual hit test is roughly 10 ms of it: 25 shots x 14 enemies with boxed floats; it can be made cheaper). That leaves ~75-90 ms of engine
+  cost that is NOT explained by enemy14 (30 ms), lasers8 (26 ms) or sp+ghost (30 ms) alone. Hypotheses (UNSURE): laser-vs-enemy overlap events (each starts a thread
+  every frame while overlapping), enemies crossing the laser columns and crowding cells, enemy bullets, or the combination. Benchmark v3 splits these.
+- Lasers on their own and 14 spread-out enemies cost almost nothing; a crowd of sprites in ONE cell, or overlap events, is what hurts.
+- Python-side per-bullet code is NOT the main problem, so the wrapper/list refactor is not worth doing for speed.
 
-**Predictions to check (all UNSURE):**
-- `ArcadePhysicsEngine(500, 2, 16)`: movement per frame <= 16 px (frame time <= ~64 ms) means 1 sub-step. With ~23 ms per scan the frame should settle
-  near 26 + 23 = ~50 ms for mode 10 (a 4x gain, still not good). A max step of 8 is NOT enough (it settles near ~120 ms); 32 behaves like 16.
-- Shots flagged `GHOST_THROUGH_SPRITES` leave the grid entirely; with a manual hit test against the enemies the mode-10 situation should return
-  to ~30 ms. The engine still moves and draws them, and `overlaps_with` / `on_overlap(4, 2)` stop working for them.
-- Halving the shots (fire every ~167 ms at double damage) should cut the pair work to about a quarter (probably ~70 ms with the default step).
+**Fix order (revised 2026-11-19):**
+1. Player shots as ghost-through-sprites plus a manual swept box test against enemy boxes (replaces the `enemyDamaged` overlap). PROVEN for the shot part (sp+ghost).
+   Make the hit test cheaper (read boxes once; skip enemies by x range; avoid `Math.floor` on every shot).
+2. Find what the remaining ~90 ms in `fullghst` is (benchmark v3 modes en+lasr, en+bull, en+ghst). If it is the laser overlap events, make lasers ghost too and test
+   enemy x/y against the laser rectangles manually.
+3. Bigger physics step (16) through `engine_step.ts`. Predicted gain for the old crowded case was 215 -> ~50 ms; with ghost shots it matters less. Check tunnelling (pixel-perfect overlaps, tiny player hitbox).
+4. Enemy bullets: ghost-through-sprites plus a manual test against the single player hitbox, before building boss patterns.
+5. One game clock advancing at most 100 ms per frame for spawning, firing, route waits, bomb and invulnerability timers.
+6. Halve the shot count if still needed (fire every ~167 ms at double damage); small items: `break` in `enemyHitByLaser`.
 
-**Fix order (revised 2026-11-17; nothing applied yet):**
-1. Bigger physics step: `ArcadePhysicsEngine(500, 2, 16)` set before any sprite exists. Go straight to 16, not 8. Check for tunnelling (overlaps are
-   pixel-perfect and the player hitbox is tiny).
-2. Player shots as ghost-through-sprites plus a manual swept box test against enemy boxes inside the loop that already walks the shots
-   (replace the `enemyDamaged` overlap). This keeps shots as sprites (drawing, movement, destruction stay with the engine). Plain-number shots drawn
-   from a renderable are only needed if this is not enough.
-3. Do the same for enemy bullets before building boss patterns: ghost-through-sprites bullets, manual test against the one player hitbox. Dense
-   patterns would otherwise hit the same quadratic wall.
-4. One game clock advancing at most 100 ms per frame for spawning, firing, route waits, bomb and invulnerability timers.
-5. Halve the shot count if still needed; small items: `break` in `enemyHitByLaser`.
-
-**Benchmark branch `hardware-bench`, version 2** (v1 = commits 9a00c1e + 7a4b58a, ran on the device; v2 = commit 854203c, 2026-11-17, UNSURE it compiles,
-not run yet). 18 modes, ~4 minutes, one summary screen at the end (A skips a mode; A on the summary restarts). New in v2:
-mode 15 `sp+ghost` (mode 10 with every shot `GHOST_THROUGH_SPRITES`; prediction ~30 ms), mode 16 `fullghst` (mode 14 with ghost shots plus the manual box test of
-every shot against every enemy; the proposed game fix; prediction far below 465 ms), mode 17 `sp+half` (mode 10 with a volley every 160 ms; prediction ~quarter
-of the collision cost). Optional second run for fix 1: uncomment the `game.current_scene().physics_engine = ArcadePhysicsEngine(500, 2, 16)` line near the top
-and set `STEP_LABEL = "16"` (the summary prints it); compare modes 10, 14, 15, 16, 17 with the first run. UNSURE whether the Python spelling of that engine
-line compiles. After testing, delete the `hardware-test` and `hardware-bench` branches.
+**Benchmark branches (all replace `main.py` with a standalone benchmark; master untouched; delete them when done):**
+- `hardware-bench` v2 (commit 854203c): 18 modes, ran on the device. Its commented-out engine line does not compile in Python (see section 2).
+- `hardware-bench-v3` (commits 65dd3b5 `engine_step.ts`, 7133294 `pxt.json` lists it first, 0eba952 `main.py`; 2026-11-19; UNSURE it compiles, not run yet).
+  15 modes from a flag table: nothing, base, spawn, sp+all, sp+ovl, sp+ghost, sp+half, lasers8, enemy14, then NEW en+lasr (14 enemies + lasers, no shots), en+bull (14 enemies +
+  9 enemy bullets), en+ghst (14 enemies + ghost shots + manual hit test), then full, fullghst, fg+half (fullghst with a volley every 160 ms). Dropped as already measured and cheap:
+  bubbles, static30, move30, sp+data, sp+z, sp+wrap, lasers4. TWO RUNS FROM ONE FLASH: on the summary screen A saves the setting `bstep` (4 or 16), restarts, and
+  `engine_step.ts` builds the physics engine with that max step before any sprite exists; the footer shows the current step. New APIs it relies on (all UNSURE until it compiles):
+  a hand-written .ts file in the Python project, `settings.exists/readNumber` in TS, `settings.exists/read_number/write_number` in Python, `game.reset()`.
+  If `settings` fails, remove the settings use and hard-code the step in `engine_step.ts`.
 
 ## 8. Useful links
 
