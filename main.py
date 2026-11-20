@@ -1,60 +1,61 @@
 # =====================================================================
-#  HARDWARE SPRITE-COST BENCHMARK  (branch "hardware-bench-v3")
+#  HARDWARE SPRITE-COST BENCHMARK  (branch "hardware-bench-v4")
 #
 #  This branch REPLACES the game with a synthetic benchmark. It does not use any game code.
 #  Delete the branch afterwards; master still has the real game.
 #
 #  It runs 15 modes by itself (4 s warm-up + 10 s measuring each, about 3.5 minutes) and then shows ONE summary screen.
-#  Don't touch anything while it runs. The background colour changes per mode so you can see it advancing.
-#  Press A during a run to skip the current mode.
+#  Don't touch anything while it runs. The background colour changes per mode. Press A during a run to skip a mode.
 #
-#  TWO RUNS FROM ONE FLASH: on the summary screen, press A. The program saves a setting, restarts, and runs again with a
-#  different physics max step (engine_step.ts reads the setting before any sprite exists). The footer shows "step 4" or
-#  "step 16". Photograph BOTH summaries. (Step 4 is the engine default; 16 is the proposed fix 1.)
+#  The physics max step is 16 in this version (engine_step.ts). On the summary screen, A switches to step 4 and runs again
+#  (and back). The footer shows the current step. You only NEED the step-16 summary; the step-4 one is optional.
 #
 #  Summary columns:  mode | average frame ms / worst frame ms | your update code in ms | sprites alive at the end
 #
-#  What each mode is (everything except "nothing" also has the HUD image + player + skin on screen):
-#   0 nothing    no sprites at all (the bare engine floor)
-#   1 base       HUD + player + skin
-#   2 spawn      5 plain sprites every 80 ms (engine deletes them after 450 ms)
-#   3 sp+all     like the game's shots: Python object + list + data + z + trig angle + Python delete loop. No overlap handlers yet.
-#   4 sp+ovl     like 3, with the 4 overlap handlers registered (they stay registered for all later modes)
-#   5 sp+ghost   like 4, but every shot is GHOST_THROUGH_SPRITES (not in the collision grid)
-#   6 sp+half    like 4, a volley every 160 ms (half as many shots)
-#   7 lasers8    two 8x120 lasers + two orbs, nothing else
-#   8 enemy14    14 enemy sprites steering with float maths
-#   9 en+lasr    14 enemies + the two lasers (laser-vs-enemy overlap events; no shots)           <- new
-#  10 en+bull    14 enemies + 9 enemy bullets (no lasers, no shots)                              <- new
-#  11 en+ghst    14 enemies + ghost shots + the manual shot-vs-enemy box test (no lasers/bullets) <- new
-#  12 full       shots + lasers + 14 enemies + 9 enemy bullets, normal (like game mode M3)
-#  13 fullghst   like 12 but shots are ghost + manual box test (the proposed game fix)
-#  14 fg+half    like 13 with a volley every 160 ms
+#  Results of benchmark v3 at step 16 (for comparison): enemy14 33, en+lasr 38, en+bull 44, en+ghst 62, full 170, fullghst 103.
 #
-#  Last run (step 4): fullghst was 121 ms while sp+ghost and enemy14 were ~30 ms each. The new modes 9, 10, 11 split
-#  that remaining ~90 ms into laser-vs-enemy events, enemy bullets, and the hit test.
+#   0 nothing    no sprites at all
+#   1 base       HUD + player + skin
+#   2 enemy14    14 enemies steering with float maths (reference)
+#   3 en+ghst    enemies + ghost shots + the v3 manual hit test (reference)
+#   4 en+gnoh    enemies + ghost shots, NO hit test           -> separates the hit test's own cost from engine cost
+#   5 en+ghs2    like 3 with a leaner hit test (boxes pre-expanded, local variables, while loop)
+#   6 bull9      9 enemy bullets as normal sprites in the collision grid
+#   7 bull9g     9 bullets as ghost sprites + a manual test against the player
+#   8 bull60     60 bullets, normal sprites (a boss-like pattern)
+#   9 bull60g    60 bullets, ghost + manual test
+#  10 en+lasr    enemies + two lasers as normal sprites (reference)
+#  11 lasr-g     enemies + two lasers as ghost sprites + a manual rectangle test
+#  12 fullghst   shots ghost + v3 hit test + lasers + enemies + 9 normal bullets (reference)
+#  13 fullopt    EVERYTHING manual: ghost shots + lean hit test, ghost lasers + rectangle test, ghost bullets + player test
+#  14 fo+b60     like 13 with 60 bullets
+#
+#  What I hope to learn: (a) is a bullet in the grid expensive even when uncrowded (bull9 / bull60 vs the ghost versions),
+#  (b) how much of en+ghst is the hit test (4 vs 3 vs 5), (c) whether laser events matter (10 vs 11),
+#  (d) how close to the ~26 ms floor "fullopt" gets, and whether a boss-like 60 bullets still fits (14).
 # =====================================================================
 
-NAMES = ["nothing", "base", "spawn", "sp+all", "sp+ovl", "sp+ghost", "sp+half", "lasers8", "enemy14", "en+lasr", "en+bull", "en+ghst", "full", "fullghst", "fg+half"]
+NAMES = ["nothing", "base", "enemy14", "en+ghst", "en+gnoh", "en+ghs2", "bull9", "bull9g", "bull60", "bull60g", "en+lasr", "lasr-g", "fullghst", "fullopt", "fo+b60"]
 
-# per mode: [base, shots, ghost, hit, lasers, enemies, bullets, overlaps, volley interval ms]
-# shots: 0 none, 1 plain sprites, 3 game-like wrapper shots
+# per mode: [base, shots, ghost, hit, lasers, enemies, bullets, bulletsGhost, overlaps, volley interval ms]
+# shots: 0 none, 3 game-like wrapper shots. hit: 0 none, 1 v3 hit test, 2 lean hit test. lasers: 0 none, 1 normal sprites, 2 ghost + manual test.
+# bullets: how many enemy bullets. bulletsGhost: 1 = ghost + manual test against the player.
 FLAGS = [
-    [0, 0, 0, 0, 0, 0, 0, 0, 80],
-    [1, 0, 0, 0, 0, 0, 0, 0, 80],
-    [1, 1, 0, 0, 0, 0, 0, 0, 80],
-    [1, 3, 0, 0, 0, 0, 0, 0, 80],
-    [1, 3, 0, 0, 0, 0, 0, 1, 80],
-    [1, 3, 1, 0, 0, 0, 0, 1, 80],
-    [1, 3, 0, 0, 0, 0, 0, 1, 160],
-    [1, 0, 0, 0, 1, 0, 0, 1, 80],
-    [1, 0, 0, 0, 0, 1, 0, 1, 80],
-    [1, 0, 0, 0, 1, 1, 0, 1, 80],
-    [1, 0, 0, 0, 0, 1, 1, 1, 80],
-    [1, 3, 1, 1, 0, 1, 0, 1, 80],
-    [1, 3, 0, 0, 1, 1, 1, 1, 80],
-    [1, 3, 1, 1, 1, 1, 1, 1, 80],
-    [1, 3, 1, 1, 1, 1, 1, 1, 160]
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 80],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 80],
+    [1, 0, 0, 0, 0, 1, 0, 0, 1, 80],
+    [1, 3, 1, 1, 0, 1, 0, 0, 1, 80],
+    [1, 3, 1, 0, 0, 1, 0, 0, 1, 80],
+    [1, 3, 1, 2, 0, 1, 0, 0, 1, 80],
+    [1, 0, 0, 0, 0, 0, 9, 0, 1, 80],
+    [1, 0, 0, 0, 0, 0, 9, 1, 1, 80],
+    [1, 0, 0, 0, 0, 0, 60, 0, 1, 80],
+    [1, 0, 0, 0, 0, 0, 60, 1, 1, 80],
+    [1, 0, 0, 0, 1, 1, 0, 0, 1, 80],
+    [1, 0, 0, 0, 2, 1, 0, 0, 1, 80],
+    [1, 3, 1, 1, 1, 1, 9, 0, 1, 80],
+    [1, 3, 1, 2, 2, 1, 9, 1, 1, 80],
+    [1, 3, 1, 2, 2, 1, 60, 1, 1, 80]
 ]
 WARM = 4000
 MEASURE = 10000
@@ -149,34 +150,23 @@ def createBase():
     B.base.append(skin)
 
 
-def plainShot(vx: number, vy: number):
-    s = sprites.create(assets.image("marisaShotImage2"), 2)
-    s.set_position(60, 92)
-    s.set_velocity(vx, vy)
-    s.lifespan = 450
-
-
 def spawnTick(kind: int, ghost: bool):
     now = game.runtime()
     if now - B.lastSpawn >= B.interval:
         B.lastSpawn = now
         for k in range(5):
-            if kind == 1:
-                plainShot(B.vx[k], B.vy[k])
-            else:
-                w = BenchShot(ghost)
-                w.sprite.set_position(60, 92)
-                w.setAngle(B.ang[k])
-                B.wraps.append(w)
-    if kind == 3:
-        for i in range(len(B.wraps) - 1, -1, -1):
-            c: BenchShot = B.wraps[i]
-            if c.sprite.x < -15 or c.sprite.x > 145 or c.sprite.y < -15 or c.sprite.y > 135:
-                sprites.destroy(c.sprite)
-                B.wraps.remove_at(i)
+            w = BenchShot(ghost)
+            w.sprite.set_position(60, 92)
+            w.setAngle(B.ang[k])
+            B.wraps.append(w)
+    for i in range(len(B.wraps) - 1, -1, -1):
+        c: BenchShot = B.wraps[i]
+        if c.sprite.x < -15 or c.sprite.x > 145 or c.sprite.y < -15 or c.sprite.y > 135:
+            sprites.destroy(c.sprite)
+            B.wraps.remove_at(i)
 
 
-def makeLasers():
+def makeLasers(ghost: bool):
     for xx in [48, 72]:
         orb = sprites.create(assets.image("miniHakkero"), 99)
         orb.set_position(xx, 100)
@@ -184,6 +174,8 @@ def makeLasers():
         las = sprites.create(assets.image("marisaLaser"), 5)
         las.set_position(xx, 40)
         las.z = -10
+        if ghost:
+            las.set_flag(SpriteFlag.GHOST_THROUGH_SPRITES, True)
         B.lasers.append(orb)
         B.lasers.append(las)
 
@@ -217,8 +209,7 @@ def enemyTick():
 
 
 def hitTest():
-    # the proposed replacement for the engine's shot-vs-enemy overlap: enemy boxes are read once per frame,
-    # then every shot is tested against every enemy box with plain whole-number comparisons. Hits are only counted.
+    # v3 version (reference): boxes read once per frame, then every shot against every enemy box.
     k = 0
     for e in B.enemies:
         B.box[k] = Math.floor(e.left)
@@ -234,11 +225,43 @@ def hitTest():
                 B.hits += 1
 
 
-def makeBullets():
-    for i in range(9):
+def hitTest2():
+    # leaner version: the +-3 / +-13 margins are added to the boxes once, the inner loop is a while loop with a local index.
+    bx = B.box
+    k = 0
+    for e in B.enemies:
+        bx[k] = Math.floor(e.left) - 3
+        bx[k + 1] = Math.floor(e.top) - 13
+        bx[k + 2] = Math.floor(e.right) + 3
+        bx[k + 3] = Math.floor(e.bottom) + 13
+        k += 4
+    for c in B.wraps:
+        x = Math.floor(c.sprite.x)
+        y = Math.floor(c.sprite.y)
+        j = 0
+        while j < k:
+            if x >= bx[j] and x <= bx[j + 2] and y >= bx[j + 1] and y <= bx[j + 3]:
+                B.hits += 1
+            j += 4
+
+
+def laserTest():
+    # ghost lasers: test every enemy against the two laser columns by hand
+    for e in B.enemies:
+        ex = Math.floor(e.x)
+        ey = Math.floor(e.y)
+        if (ex >= 36 and ex <= 60) or (ex >= 60 and ex <= 84):
+            if ey >= -20 and ey <= 100:
+                B.hits += 1
+
+
+def makeBullets(n: int, ghost: bool):
+    for i in range(n):
         b = sprites.create(assets.image("redBall"), 3)
-        b.set_position(10 + i * 12, 10 + (i % 3) * 30)
-        b.set_velocity(0, 30)
+        b.set_position(5 + (i * 7) % 110, (i * 13) % 120)
+        b.set_velocity(0, 30 + (i % 3) * 15)
+        if ghost:
+            b.set_flag(SpriteFlag.GHOST_THROUGH_SPRITES, True)
         B.misc.append(b)
 
 
@@ -246,6 +269,15 @@ def tickBullets():
     for b in B.misc:
         if b.y > 130:
             b.y = -10
+
+
+def bulletTest():
+    # ghost bullets: one test per bullet against the single player hitbox (player sits at 60,100)
+    for b in B.misc:
+        bx = Math.floor(b.x)
+        by = Math.floor(b.y)
+        if bx >= 57 and bx <= 63 and by >= 97 and by <= 103:
+            B.hits += 1
 
 
 def ovNoop(a: Sprite, b: Sprite):
@@ -274,18 +306,18 @@ def enterMode(m: int):
     B.lastSpawn = 0
     B.hits = 0
     f = FLAGS[m]
-    B.interval = f[8]
+    B.interval = f[9]
     scene.set_background_color((m % 15) + 1)
     if f[0] == 1 and len(B.base) == 0:
         createBase()
-    if f[7] == 1:
+    if f[8] == 1:
         registerOverlaps()
-    if f[4] == 1:
-        makeLasers()
+    if f[4] > 0:
+        makeLasers(f[4] == 2)
     if f[5] == 1:
         makeEnemies()
-    if f[6] == 1:
-        makeBullets()
+    if f[6] > 0:
+        makeBullets(f[6], f[7] == 1)
 
 
 def tickMode(m: int):
@@ -294,10 +326,16 @@ def tickMode(m: int):
         spawnTick(f[1], f[2] == 1)
     if f[5] == 1:
         enemyTick()
-    if f[6] == 1:
+    if f[6] > 0:
         tickBullets()
+        if f[7] == 1:
+            bulletTest()
     if f[3] == 1:
         hitTest()
+    elif f[3] == 2:
+        hitTest2()
+    if f[4] == 2:
+        laserTest()
 
 
 def pad(text: str, n: int):
@@ -309,7 +347,7 @@ def pad(text: str, n: int):
 def currentStep():
     if settings.exists("bstep"):
         return settings.read_number("bstep")
-    return 4
+    return 16
 
 
 def finishMode():
@@ -379,10 +417,10 @@ def benchUpdate():
 
 def onA():
     if B.phase == 1:
-        if currentStep() == 4:
-            settings.write_number("bstep", 16)
-        else:
+        if currentStep() == 16:
             settings.write_number("bstep", 4)
+        else:
+            settings.write_number("bstep", 16)
         game.reset()
     else:
         B.modeStart = game.runtime() - WARM - MEASURE
