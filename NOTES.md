@@ -1,6 +1,6 @@
 # Touhou (EoSD-style) for the Calliope gamekit: working notes
 
-Written and maintained by Claude (the owner's assistant in a long chat that started 2026-11-13). Last full handoff rewrite: 2026-11-20. Benchmark v4 results recorded the same day (sections 0.5-0.7, 5, 6, 7).
+Written and maintained by Claude (the owner's assistant in a long chat that started 2026-11-13). Last full handoff rewrite: 2026-11-20. Benchmark v4 results recorded the same day (sections 0.5-0.7, 5, 6, 7); benchmark v5 built the same day (not run yet).
 Claude has no memory between chats. THIS FILE IS THE MEMORY. A new chat should read it completely before doing anything.
 
 Everything here is marked as one of: VERIFIED (read in source/docs or seen in the repo), MEASURED (the owner observed it on hardware),
@@ -26,7 +26,7 @@ benchmark branches to make them work.
 1. Read this whole file. Do not summarise it back at length; the owner knows it.
 2. Use the GitHub connector: list branches, list the latest commits, read `main.py` on `master` (compare its blob sha with section 6; if it changed, refresh sections 6 and 10).
 3. Look for new files on `master` (for example `engine_step.ts`) and on the benchmark branches.
-4. Ask the owner (one short question) what happened since: did they start the game fixes, did anything fail to compile, do they want benchmark v5?
+4. Ask the owner (one short question) what happened since: did they run benchmark v5 (or send a Problems-panel screenshot if it did not compile), did they start the game fixes?
 5. Then continue from section 0.6.
 
 ### 0.3 How to talk to the owner (voice and habits that have worked)
@@ -45,8 +45,8 @@ benchmark branches to make them work.
 ### 0.4 How to work with the repo and tools
 - Read with `get_file_contents` (a directory path lists files with blob shas; pass `ref` as `refs/heads/<branch>` to read a branch). Write with `create_or_update_file`: it replaces the WHOLE file and needs the current blob sha, so copy the file exactly,
   then verify with `get_commit` (include_diff) that only the intended lines changed.
-- In some chats the GitHub tools are deferred and must be loaded first with `tool_search` (for example query "github get file contents", then "github list branches commits").
-- Experiments go on branches. `master` only gets NOTES.md updates, and the README (written on request). Never push game code to `master` unless asked.
+- In some chats the GitHub tools are deferred and must be loaded first with `tool_search` (for example query "github get file contents", then "github list branches commits", "github create branch").
+- Experiments go on branches (`create_branch` with `from_branch` works; a new benchmark branch can start from the previous one so `engine_step.ts` and `pxt.json` come along). `master` only gets NOTES.md updates, and the README (written on request). Never push game code to `master` unless asked.
 - The tools cannot create releases or tags. MakeCode compiles only in the owner's browser; I cannot compile. Never claim code compiles unless the owner ran it.
 - I can read other public repos (for example `microsoft/pxt-common-packages`, `GensokyoClub/th06`). Check engine claims against the source instead of guessing. `web_search` is for docs and forum posts.
 - Keep this file accurate: update it after anything settled (results, decisions, new branches, new gotchas). Rewrite the whole file with the latest sha, keep all sections, mark confidence.
@@ -56,15 +56,16 @@ benchmark branches to make them work.
 - Two fixes are PROVEN on the device: (1) physics max step 16 through a TypeScript file (`engine_step.ts`), (2) player shots flagged ghost-through-sprites with a manual hit test.
   Together they take the game-like test from ~499 ms to ~103 ms per frame. That is still too slow (the bare device floor is ~26 ms).
 - **Benchmark v4 ran on 2026-11-20 (it compiled; all 15 modes ran; step 16 only).** Results in section 7. Short version: (a) enemy bullets as normal sprites cost NOTHING when uncrowded (9 bullets = 26 ms) but 60 cost 93 ms;
-  ghost bullets + a manual test against the player halve that (47 ms) but are not free; (b) the manual hit test is NOT the bottleneck (only ~4-6 ms of own code); (c) ghost ( manual) lasers save ~6 ms;
+  ghost bullets + a manual test against the player halve that (47 ms) but are not free; (b) the manual hit test is NOT the bottleneck (only ~4-6 ms of own code); (c) ghost (+ manual) lasers save ~6 ms;
   (d) the all-manual design `fullopt` is still 91 ms and a boss-like 60 bullets on top (`fo+b60`) is 158 ms. About 40 ms of `fullopt` is neither my code nor the grid and is NOT yet explained (hypotheses in section 7).
+- **Benchmark v5 is built (branch `hardware-bench-v5`, 2026-11-20) and waiting for the owner to run it. UNSURE it compiles.** It tests why the ~40 ms exists (no overlap handlers, stationary enemies, lazy steering, a forced-GC timing column)
+  and whether bullets/shots that are not sprites (flat integer arrays drawn by one renderable) avoid it. Details in section 7.
 - The game on `master` has none of the performance fixes yet. The owner intends to write them themselves.
 
 ### 0.6 Next steps / what we are waiting on (in order)
-1. Decide the next experiment with the owner. Proposal (not built yet, awaiting the owner's yes): **benchmark v5** to (a) find the unexplained engine time (enemies stationary vs steering with float vs integer math, ghost shots present or not),
-   and (b) test bullets that are NOT sprites at all (flat arrays of positions, drawn by one `scene.createRenderable`, manual test against the player) at 60/120 bullets.
+1. The owner runs `hardware-bench-v5` (about 3 minutes, hands off) and posts the summary photo, or the Problems-panel screenshot if it does not compile. Interpret with the guide in section 7 (v5 entry), record the numbers, and decide the bullet/shot design.
 2. The owner applies the proven fixes in the game: add `engine_step.ts` (hard-coded 16, listed first in `pxt.json`), flag shots `GHOST_THROUGH_SPRITES`, replace the `enemyDamaged` overlap with a lean manual box test
-   (v4 `hitTest2` style). For enemy bullets and lasers use ghost + manual test (v4: 60 bullets 93 -> 47 ms; lasers ~6 ms cheaper). Do not expect these alone to make the game smooth (section 7).
+   (v4 `hitTest2` style). For enemy bullets and lasers use ghost + manual test (v4: 60 bullets 93 -> 47 ms; lasers ~6 ms cheaper), unless v5 shows non-sprite bullets are much better. Do not expect these alone to make the game smooth (section 7).
    (Offered, not done: I can add `engine_step.ts` and the `pxt.json` line to a game branch if asked.) After that, re-run `hardware-test` modes on the game to confirm.
 3. Fix the other known issues in section 6 (bomb constants, game clock, laser damage per frame, enemy removal loop, undeclared attributes).
 4. Link `tier` to `power` and add item drops, then the smallest boss (section 5). Dense boss patterns need the bullet design from step 1.
@@ -76,6 +77,7 @@ benchmark branches to make them work.
 - `hardware-bench`: benchmark v2 (18 modes). Ran. Its commented-out engine line does not compile in Python.
 - `hardware-bench-v3`: benchmark with `engine_step.ts` and a saved step setting (A toggles 4/16 and restarts). Ran on the device.
 - `hardware-bench-v4`: benchmark with bullet/laser/hit-test isolation modes and an all-manual `fullopt` design, default step 16 (main.py blob bc4bed10). RAN on 2026-11-20 at step 16 (step 4 not run, optional). Results in section 7.
+- `hardware-bench-v5`: branched from v4 (same `engine_step.ts`/`pxt.json`), main.py blob 8c001fba (commit a0ca406). 13 modes, about 3 minutes. NOT run yet, UNSURE it compiles (section 7).
 
 ---
 
@@ -111,6 +113,8 @@ benchmark branches to make them work.
 - Image literals in the jres store palette **indices**, not colors. Changing a palette hex recolors all art.
 - Sprite `z` is draw order; the 2nd arg of `sprites.create` is the *kind*, not a layer. Changing `z` sets a flag so the scene re-sorts all sprites before the next draw (VERIFIED in the engine source). MEASURED on the device: cheap.
 - `sprites.destroy` the sprite AND remove the wrapper from any Python list, or it leaks.
+- UNSURE (used by benchmark v5, not compiled yet): `scene.create_renderable(z, handler)` with `def handler(target: Image, camera: scene.Camera)`, `control.gc()`, `Math.round`, `Image.draw_transparent_image` on the screen image inside a renderable.
+  Possibly relevant to speed (UNSURE): a sprite's `x`/`y` getters may return non-integer numbers, and on the device a non-integer number is a heap-allocated boxed double, so reading `sprite.x` or float maths such as `30 * dx / abs(dx)` can create garbage every frame.
 
 **Arcade physics engine facts (VERIFIED by reading `libs/game/physics.ts` and `spritemap.ts` of pxt-common-packages v14.1.7 on 2026-11-16;
 UNSURE whether the owner's editor ships exactly that version):**
@@ -212,7 +216,7 @@ Sanity check: a 1600 HP spell phase should take ~7 s at tier 5 and ~19 s at tier
 - B1. Reuse `Enemy`: add a `phases` list of HP values and `phaseIndex`; when health hits 0 and another phase exists, advance instead of setting `dead`.
 - B2. One hard-coded pattern: a function that fires a ring of N bullets with `setAngle` (parameters: count, speed, angle offset). Keep a constant cap on bullets alive until the bullet design is settled.
   Benchmark v4 (2026-11-20): normal-sprite bullets cost nothing when uncrowded (9 = 26 ms) but 60 cost 93 ms; ghost bullets + a manual test against the player cost 47 ms at 60. So a pattern needs ghost bullets
-  (and probably fewer sprites or non-sprite bullets, see section 7). The earlier "about 1.2 ms per bullet" figure from v3 was a crowding effect, not a per-bullet constant.
+  (and probably fewer sprites or non-sprite bullets, see section 7; benchmark v5 tests non-sprite bullets). The earlier "about 1.2 ms per bullet" figure from v3 was a crowding effect, not a per-bullet constant.
 - B3. Boss HP bar: a thin image sprite at the top, redrawn only when HP changes.
 - B4. Phase change: clear bullets into stars (reuse `bombActive` logic), short invulnerability, `isSpell` flag applying the /7 damage rule, optional timer and spell name text.
 - B5. Movement: reuse the existing `route` system, looping.
@@ -334,7 +338,7 @@ Reproducibility check against v3 at step 16: en+ghst 63 vs 62, fullghst 103 vs 1
 1. Max step 16 through `engine_step.ts` (listed first in pxt.json; hard-code `new ArcadePhysicsEngine(500, 2, 16)`, no settings needed). PROVEN. Check tunnelling (overlaps are pixel-perfect, tiny player hitbox).
 2. Player shots as ghost-through-sprites plus a manual swept box test against enemy boxes (replaces the `enemyDamaged` overlap). PROVEN for the shot part. Use the lean test (`hitTest2`: margins pre-added to the boxes, local variables, while loop).
 3. Enemy bullets and lasers: ghost + manual test (PROVEN better: 60 bullets 93 -> 47 ms, lasers ~6 ms cheaper). The player is a single tiny box, so the per-bullet test is cheap (~0.04 ms each in bull60g).
-4. Find the unexplained ~40 ms (benchmark v5, proposed, not built; see section 0.6) and test non-sprite bullets (flat arrays + one `scene.createRenderable` + manual player test). This decides whether dense boss patterns are possible at all.
+4. Find the unexplained ~40 ms (benchmark v5, BUILT, not run; see section 0.6) and test non-sprite bullets (flat arrays + one `scene.create_renderable` + manual player test). This decides whether dense boss patterns are possible at all.
 5. One game clock advancing at most 100 ms per frame for spawning, firing, route waits, bomb and invulnerability timers.
 6. Halve the shot count if still needed (fire every ~167 ms at double damage; v3 fg+half 75 vs fullghst 103); small items: `break` in `enemyHitByLaser`.
 
@@ -345,6 +349,16 @@ Reproducibility check against v3 at step 16: en+ghst 63 vs 62, fullghst 103 vs 1
   (ghost shots + enemies, no hit test), en+ghs2 (lean hit test), bull9 / bull9g (9 bullets normal vs ghost + manual test vs the player), bull60 / bull60g (60 bullets), en+lasr, lasr-g (ghost lasers + manual
   rectangle test), fullghst, fullopt (everything manual: ghost shots + lean hit test, ghost lasers, ghost bullets), fo+b60 (fullopt with 60 bullets). Default step 16; A toggles to 4 and back (the step 4 run was not done; optional).
   Its questions are answered above: a grid bullet is free when uncrowded; the hit test is ~4-6 ms of code; laser events matter ~6 ms; fullopt does NOT get close to the floor (91 ms), and 60 bullets do not fit (158 ms).
+- `hardware-bench-v5` (branched from v4 on 2026-11-20; commit a0ca406, main.py blob 8c001fba; NOT run; UNSURE it compiles). 13 modes, 4 s warm-up + 10 s measuring each, about 3 minutes. Summary columns: mode | avg/worst ms | own code ms | n | gc ms.
+  Mode names are at most 6 characters so the 26-character summary line fits the 160 px screen. "n" counts sprites plus non-sprite bullets/shots. "gc" = milliseconds for ONE forced `control.gc()` at the end of the mode with its objects still alive.
+  Modes: none, base; **e14nov** (14 float-steering enemies, NO overlap handlers registered); **nov+gn** (+ ghost shots, still no handlers); then handlers are registered (they cannot be unregistered, so these two must run first):
+  **stat+g** (14 stationary enemies + ghost shots, no hit test); **lazy+g** (enemies get velocity once per leg, time-based legs, no per-frame x/y reads + ghost shots); **csh+en** (float enemies + non-sprite shots + lean hit test);
+  **c60** / **c120** (60 / 120 non-sprite bullets + player test); **fo+c60** (fullopt with 60 non-sprite bullets); **fcust** (shots too are non-sprite; sprites are only enemies, 2 orbs, 2 lasers); **fc+120** (fcust with 120 bullets); **fopt9** (v4 fullopt anchor, expect ~91).
+  Non-sprite objects are integers in 1/16 px moved with integer maths and drawn by one `scene.create_renderable(5, drawCustom)` handler (ignores camera shake).
+  **How to read it (my predictions, UNSURE):** compare nov+gn with e14nov and with v4 en+gnoh (56): if nov+gn is ~39 the extra ~17 ms comes from the grid/handlers; if it is still ~56 the cause is elsewhere (GC or per-sprite engine work).
+  stat+g and lazy+g vs 56: if both drop a lot, per-frame float maths / x,y reads / velocity writes are the cost (garbage); if not, it is the shots existing next to enemies. csh+en vs en+ghs2 (61): shows what the shot sprites + wrappers cost.
+  c60 vs bull60g (47) and c120: whether non-sprite bullets are cheap enough for boss patterns. fo+c60 vs fo+b60 (158) and fullopt (91), fcust and fc+120: what an almost-sprite-free design costs. A large gc column with many objects supports the GC hypothesis.
+  Possible compile problems (not compiled by me): `scene.create_renderable` / `scene.Camera` in the handler signature, `control.gc()`, `Math.round`. If one fails, send the Problems screenshot; the `control.gc()` timing is easy to remove.
 - How the owner runs a benchmark: MakeCode editor, GitHub panel, switch to the branch (or Import URL with the branch address), Download to the gamekit, hands off for ~3.5 minutes, photograph the summary
   screen (columns: mode, avg/worst frame ms, own code ms, sprites alive; footer shows the physics step). If it does not compile, they screenshot the Problems panel.
 
